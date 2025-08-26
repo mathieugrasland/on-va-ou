@@ -31,7 +31,7 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background-image: url('images/bar-amis-fond.webp'); /* Chemin vers ta photo */
+    background-image: url('images/bar-amis-fond.jpeg'); /* Chemin vers ta photo */
     background-size: cover;
     background-position: center;
     filter: blur(5px) brightness(0.7);
