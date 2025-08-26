@@ -28,11 +28,20 @@ jobs:
       - name: Deploy to Firebase Hosting
         run: firebase deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Deploy Cloud Functions (Python)
+      - name: Deploy register_user Cloud Function
         uses: google-github-actions/deploy-cloud-functions@v1
         with:
           name: register_user
           runtime: python311
           entry_point: register_user
+          source_dir: 'functions'
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          
+      - name: Deploy login_user Cloud Function
+        uses: google-github-actions/deploy-cloud-functions@v1
+        with:
+          name: login_user
+          runtime: python311
+          entry_point: login_user
           source_dir: 'functions'
           project_id: ${{ secrets.GCP_PROJECT_ID }}
