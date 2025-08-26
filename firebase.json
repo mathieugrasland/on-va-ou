@@ -24,6 +24,10 @@
       {
         "source": "/registerUser",
         "function": "register_user"
+      },
+      {
+        "source": "/loginUser",
+        "function": "login_user"
       }
     ]
   }
