@@ -22,8 +22,8 @@
     ],
     "rewrites": [
       {
-        "source": "**",
-        "destination": "/index.html"
+        "source": "/registerUser",
+        "function": "register_user"
       }
     ]
   }

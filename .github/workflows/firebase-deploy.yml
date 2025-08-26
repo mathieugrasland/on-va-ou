@@ -1,0 +1,38 @@
+name: Deploy to Firebase Hosting and Functions
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase Hosting
+        run: firebase deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Deploy Cloud Functions (Python)
+        uses: google-github-actions/deploy-cloud-functions@v1
+        with:
+          name: register_user
+          runtime: python311
+          entry_point: register_user
+          source_dir: 'functions'
+          project_id: ${{ secrets.GCP_PROJECT_ID }}

@@ -1,21 +1,47 @@
-# Welcome to Cloud Functions for Firebase for Python!
-# To get started, simply uncomment the below code or create your own.
-# Deploy with `firebase deploy`
+import functions_framework
+import firebase_admin
+from firebase_admin import credentials, auth, firestore
 
-from firebase_functions import https_fn
-from firebase_functions.options import set_global_options
-from firebase_admin import initialize_app
+# Initialisation de l'application Firebase (une seule fois)
+if not firebase_admin._apps:
+    cred = credentials.ApplicationDefault()
+    firebase_admin.initialize_app(cred)
 
-# For cost control, you can set the maximum number of containers that can be
-# running at the same time. This helps mitigate the impact of unexpected
-# traffic spikes by instead downgrading performance. This limit is a per-function
-# limit. You can override the limit for each function using the max_instances
-# parameter in the decorator, e.g. @https_fn.on_request(max_instances=5).
-set_global_options(max_instances=10)
+db = firestore.client()
 
-# initialize_app()
-#
-#
-# @https_fn.on_request()
-# def on_request_example(req: https_fn.Request) -> https_fn.Response:
-#     return https_fn.Response("Hello world!")
+@functions_framework.http
+def register_user(request):
+    """HTTP Cloud Function pour l'inscription."""
+    try:
+        request_json = request.get_json(silent=True)
+        if not request_json or not all(k in request_json for k in ('email', 'password', 'firstName', 'lastName')):
+            return {"error": "Les données d'inscription sont incomplètes."}, 400
+
+        email = request_json['email']
+        password = request_json['password']
+        firstName = request_json['firstName']
+        lastName = request_json['lastName']
+
+        # 1. Créer l'utilisateur dans Firebase Authentication
+        user_record = auth.create_user(
+            email=email,
+            password=password
+        )
+
+        # 2. Sauvegarder les informations supplémentaires dans Cloud Firestore
+        user_ref = db.collection('users').document(user_record.uid)
+        user_ref.set({
+            'firstName': firstName,
+            'lastName': lastName,
+            'email': email,
+            'preferences': {},
+            'address': '',
+            'createdAt': firestore.SERVER_TIMESTAMP
+        })
+
+        return {"message": "Inscription réussie", "uid": user_record.uid}, 201
+
+    except auth.EmailAlreadyExistsError:
+        return {"error": "Cette adresse e-mail est déjà utilisée."}, 409
+    except Exception as e:
+        return {"error": f"Erreur interne : {e}"}, 500
