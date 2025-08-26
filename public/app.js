@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-
+            
             const firstName = e.target.firstName.value;
             const lastName = e.target.lastName.value;
             const email = e.target.email.value;
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password, firstName, lastName })
                 });
-
+                
                 const result = await response.json();
 
                 if (response.ok) {
