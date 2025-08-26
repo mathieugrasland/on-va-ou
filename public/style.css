@@ -21,7 +21,7 @@ body {
     min-height: 100vh;
     color: var(--dark-text);
     background-color: var(--light-bg);
-    overflow: hidden; /* Pour gérer le fond */
+    overflow: hidden;
 }
 
 /* Arrière-plan dynamique */
@@ -34,7 +34,7 @@ body {
     background-image: url('images/bar-amis-fond.webp'); /* Chemin vers ta photo */
     background-size: cover;
     background-position: center;
-    filter: blur(5px) brightness(0.7); /* Flou et assombrissement pour le texte */
+    filter: blur(5px) brightness(0.7);
     z-index: -1;
     animation: fadeInBackground 2s forwards;
 }
@@ -45,8 +45,9 @@ body {
 }
 
 .container {
-    background: rgba(255, 255, 255, 0.95); /* Fond blanc semi-transparent */
-    padding: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 40px 20px; /* Rembourrage interne corrigé */
+    margin: 0 10px; /* Marge externe corrigée */
     border-radius: 12px;
     box-shadow: var(--shadow-light);
     text-align: center;
@@ -57,7 +58,7 @@ body {
     z-index: 1;
     transform: translateY(20px);
     opacity: 0;
-    animation: fadeInUp 0.8s forwards 0.5s; /* Animation avec délai */
+    animation: fadeInUp 0.8s forwards 0.5s;
 }
 
 @keyframes fadeInUp {
@@ -76,22 +77,26 @@ p {
     line-height: 1.6;
 }
 
+/* Flexbox pour les boutons */
 .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
     margin-top: 30px;
 }
 
 .button, form button {
     display: block;
-    width: 100%;
+    flex-grow: 1; /* Permet au bouton de s'étirer */
+    width: auto; /* Supprime la largeur fixe */
     padding: 12px 20px;
     border: none;
     border-radius: 8px;
-    background: linear-gradient(45deg, var(--primary-color), var(--accent-color)); /* Dégradé */
+    background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
     color: var(--light-text);
     text-decoration: none;
     font-size: 17px;
     font-weight: 500;
-    margin-bottom: 15px;
     cursor: pointer;
     transition: transform var(--transition-speed), box-shadow var(--transition-speed);
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
@@ -103,7 +108,7 @@ p {
 }
 
 .button-secondary {
-    background: var(--dark-text); /* Bouton sombre pour l'inscription */
+    background: var(--dark-text);
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
@@ -130,7 +135,7 @@ input {
 
 input:focus {
     border-color: var(--accent-color);
-    box-shadow: 0 0 0 3px rgba(255, 183, 77, 0.3); /* Ombre légère à l'input focus */
+    box-shadow: 0 0 0 3px rgba(255, 183, 77, 0.3);
     outline: none;
 }
 
