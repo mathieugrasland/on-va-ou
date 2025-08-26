@@ -6,7 +6,8 @@ on:
       - main
 
 jobs:
-  deploy:
+  # Job to deploy Firebase Hosting (runs on every push)
+  deploy_hosting:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -28,20 +29,25 @@ jobs:
       - name: Deploy to Firebase Hosting
         run: firebase deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Deploy register_user Cloud Function
+  # Job to deploy Cloud Functions (only runs when 'functions/' changes)
+  deploy_functions:
+    runs-on: ubuntu-latest
+    if: github.event.push.before != github.event.push.after && contains(github.event.commits.*.added, 'functions/') || contains(github.event.commits.*.modified, 'functions/') || contains(github.event.commits.*.removed, 'functions/')
+    needs: deploy_hosting
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy Cloud Functions
         uses: google-github-actions/deploy-cloud-functions@v1
         with:
-          name: register_user
+          name: registerUserProfile
           runtime: python311
-          entry_point: register_user
-          source_dir: 'functions'
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          
-      - name: Deploy login_user Cloud Function
-        uses: google-github-actions/deploy-cloud-functions@v1
-        with:
-          name: login_user
-          runtime: python311
-          entry_point: login_user
+          entry_point: registerUserProfile
           source_dir: 'functions'
           project_id: ${{ secrets.GCP_PROJECT_ID }}
