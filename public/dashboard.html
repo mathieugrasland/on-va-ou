@@ -362,10 +362,9 @@
         src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBs1O6cYYxNLE2vB9gEcmhEhONrditDyCo&callback=initGoogleMaps&loading=async">
     </script>
 
-    <!-- Fonction globale pour Google Maps callback -->
     <script>
-        // Fonction globale accessible par Google Maps API
-        function initGoogleMaps() {
+        // Définir la fonction dans l'objet window pour la rendre globale
+        window.initGoogleMaps = function() {
             console.log('Google Maps API chargée, vérification...');
             if (typeof google !== 'undefined' && google.maps) {
                 console.log('Google Maps disponible, déclenchement événement');
@@ -381,7 +380,7 @@
                     }
                 }, 500);
             }
-        }
+        };
         
         // Gestion d'erreur globale pour Google Maps
         window.gm_authFailure = function() {
