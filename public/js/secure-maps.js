@@ -3,6 +3,9 @@
  * Cette approche protège la clé API en la cachant côté serveur
  */
 
+// Import des fonctions Firestore v9+
+import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
 class SecureGeocodingService {
     constructor(auth = null) {
         this.baseUrl = 'https://us-central1-on-va-ou-470217.cloudfunctions.net';
@@ -128,12 +131,10 @@ class SecureMapManager {
             const user = this.auth?.currentUser;
             if (!user || !this.db) return;
 
-            const userDoc = await this.db
-                .collection('users')
-                .doc(user.uid)
-                .get();
+            const userDocRef = doc(this.db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
 
-            if (userDoc.exists) {
+            if (userDoc.exists()) {
                 const userData = userDoc.data();
                 const address = userData.address?.trim();
 
@@ -157,12 +158,10 @@ class SecureMapManager {
             const user = this.auth?.currentUser;
             if (!user || !this.db) return;
 
-            const userDoc = await this.db
-                .collection('users')
-                .doc(user.uid)
-                .get();
+            const userDocRef = doc(this.db, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
 
-            if (!userDoc.exists) return;
+            if (!userDoc.exists()) return;
 
             const friends = userDoc.data().friends || [];
             
@@ -172,12 +171,10 @@ class SecureMapManager {
             const friendsData = await Promise.all(
                 friends.map(async friendId => {
                     try {
-                        const friendDoc = await this.db
-                            .collection('users')
-                            .doc(friendId)
-                            .get();
+                        const friendDocRef = doc(this.db, 'users', friendId);
+                        const friendDoc = await getDoc(friendDocRef);
 
-                        if (friendDoc.exists) {
+                        if (friendDoc.exists()) {
                             return { id: friendId, ...friendDoc.data() };
                         }
                         return null;
