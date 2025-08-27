@@ -8,6 +8,214 @@
     <title>Mon Profil - On va où ?</title>
     <link rel="stylesheet" href="style.css">
     
+    <style>
+        /* Wrapper spécifique au profil - vraiment responsive */
+        .profile-wrapper {
+            width: 100%;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+            padding: 20px 0;
+        }
+
+        /* Container principal responsive */
+        .profile-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        /* Header du profil amélioré */
+        .profile-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px) saturate(1.2);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .profile-header h1 {
+            margin: 0;
+            color: #4285F4;
+            font-weight: 600;
+            font-size: 28px;
+        }
+
+        .profile-header p {
+            margin: 5px 0 0;
+            color: #666;
+            font-size: 16px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        /* Formulaire responsive en grid */
+        .profile-form {
+            display: grid;
+            gap: 30px;
+            grid-template-columns: 1fr;
+        }
+
+        /* Sections du formulaire */
+        .form-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px) saturate(1.2);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .form-section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .form-section h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #333;
+            font-weight: 600;
+            font-size: 20px;
+        }
+
+        /* Layout 2 colonnes sur desktop */
+        @media (min-width: 1024px) {
+            .profile-form {
+                grid-template-columns: 1fr 1fr;
+                gap: 40px;
+            }
+            
+            .profile-content {
+                padding: 0 40px;
+            }
+        }
+
+        /* Tablet layout */
+        @media (min-width: 769px) and (max-width: 1023px) {
+            .profile-content {
+                max-width: 900px;
+                padding: 0 30px;
+            }
+            
+            .profile-form {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .profile-wrapper {
+                padding: 10px 0;
+            }
+            
+            .profile-content {
+                padding: 0 15px;
+            }
+            
+            .profile-header {
+                padding: 20px;
+                flex-direction: column;
+                text-align: center;
+                align-items: center;
+                gap: 15px;
+            }
+            
+            .profile-header h1 {
+                font-size: 24px;
+            }
+            
+            .header-actions {
+                justify-content: center;
+                width: 100%;
+            }
+            
+            .form-section {
+                padding: 20px;
+                border-radius: 15px;
+            }
+            
+            .form-section h3 {
+                font-size: 18px;
+            }
+            
+            .form-row {
+                flex-direction: column;
+            }
+        }
+
+        /* Section amis responsive */
+        .friends-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px) saturate(1.2);
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .friends-section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Loading screen amélioré */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Boutons responsifs */
+        .button, .button-secondary, .button-logout {
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .button, .button-secondary, .button-logout {
+                padding: 10px 20px;
+                font-size: 13px;
+            }
+        }
+    </style>
+    
     <!-- Firebase App (the core Firebase SDK) -->
     <script type="module">
         import { auth, db } from './firebase-config.js';
@@ -718,7 +926,7 @@
 </head>
 <body>
     <div class="background-image"></div>
-    <div class="container">
+    <div class="profile-wrapper">
         
         <!-- Indicateur de chargement -->
         <div id="loading" class="loading">
@@ -811,7 +1019,7 @@
             </form>
 
             <!-- Section amis -->
-            <section class="dashboard-section friends-section">
+            <section class="friends-section">
                 <h3>👥 Mes amis</h3>
                 
                 <!-- Ajouter un ami -->
