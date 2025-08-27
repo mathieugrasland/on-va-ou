@@ -34,10 +34,23 @@
                 const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
                 if (userDoc.exists()) {
                     userProfile = userDoc.data();
+                    
+                    // Vérifier si le profil est complet avant d'afficher le dashboard
+                    const isProfileComplete = userProfile.address && 
+                                            userProfile.transportMode && 
+                                            userProfile.preferences;
+                    
+                    if (!isProfileComplete) {
+                        // Rediriger vers le profil si incomplet
+                        window.location.href = 'profile.html';
+                        return;
+                    }
+                    
                     updateUserDisplay();
                 } else {
                     console.error('Profil utilisateur introuvable');
                     showMessage('Impossible de charger votre profil', 'error');
+                    window.location.href = 'profile.html';
                 }
             } catch (error) {
                 console.error('Erreur chargement profil:', error);
@@ -137,6 +150,14 @@
             if (logoutBtn) {
                 logoutBtn.addEventListener('click', logout);
             }
+
+            // Bouton profil
+            const profileBtn = document.getElementById('profile-btn');
+            if (profileBtn) {
+                profileBtn.addEventListener('click', () => {
+                    window.location.href = 'profile.html';
+                });
+            }
         });
 
         // Exposer les fonctions pour le débogage
@@ -167,7 +188,12 @@
                     <p>Bienvenue <strong id="user-name">Utilisateur</strong></p>
                     <p id="user-email" class="user-email">email@exemple.com</p>
                 </div>
-                <button id="logout-btn">Déconnexion</button>
+                <div class="header-actions">
+                    <button id="profile-btn" class="button button-secondary">
+                        Mon Profil
+                    </button>
+                    <button id="logout-btn">Déconnexion</button>
+                </div>
             </header>
 
             <!-- Section amis -->

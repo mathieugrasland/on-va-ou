@@ -85,16 +85,20 @@
                         lastName: lastName,
                         email: email,
                         createdAt: new Date().toISOString(),
-                        friends: [],
-                        preferences: {}
+                        profileCompleted: false,
+                        // Champs à compléter sur la page profil
+                        address: '',
+                        transportMode: '',
+                        preferences: '',
+                        friends: []
                     };
                     
                     await setDoc(doc(db, 'users', user.uid), userProfile);
                     
-                    // Succès
-                    showMessage('Inscription réussie ! Bienvenue ' + firstName + ' !');
+                    // Succès - redirection vers la page profil
+                    showMessage('Inscription réussie ! Complétez maintenant votre profil');
                     setTimeout(() => {
-                        window.location.href = 'dashboard.html';
+                        window.location.href = 'profile.html';
                     }, 2000);
                     
                 } catch (error) {

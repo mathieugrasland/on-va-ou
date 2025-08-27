@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Profil utilisateur - On va où ? Complétez vos informations">
+    <meta name="theme-color" content="#5d4037">
+    <title>Mon Profil - On va où ?</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Firebase App (the core Firebase SDK) -->
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
+        import { doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+
+        // Fonction utilitaire pour afficher des messages
+        function showMessage(message, type = 'success') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
+            messageDiv.textContent = message;
+            messageDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 500;
+                z-index: 1000;
+                max-width: 400px;
+                background: ${type === 'error' ? '#f44336' : '#4caf50'};
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            `;
+            
+            document.body.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 5000);
+        }
+
+        let currentUser = null;
+        let userProfile = null;
+        let isNewUser = false;
+
+        // Vérifier l'authentification
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                await loadUserProfile();
+            } else {
+                window.location.href = 'login.html';
+            }
+        });
+
+        // Charger le profil utilisateur
+        async function loadUserProfile() {
+            try {
+                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                if (userDoc.exists()) {
+                    userProfile = userDoc.data();
+                    
+                    // Vérifier si c'est un nouveau utilisateur
+                    isNewUser = !userProfile.address && !userProfile.transportMode && !userProfile.preferences;
+                    
+                    updateUI();
+                    hideLoading();
+                } else {
+                    showMessage('Profil utilisateur introuvable', 'error');
+                    window.location.href = 'login.html';
+                }
+            } catch (error) {
+                console.error('Erreur chargement profil:', error);
+                showMessage('Erreur lors du chargement des données', 'error');
+            }
+        }
+
+        // Mettre à jour l'interface
+        function updateUI() {
+            // Titre dynamique
+            const pageTitle = document.getElementById('page-title');
+            const subtitle = document.getElementById('page-subtitle');
+            
+            if (isNewUser) {
+                pageTitle.textContent = 'Finalisons votre profil';
+                subtitle.textContent = 'Quelques informations pour personnaliser votre expérience';
+            } else {
+                pageTitle.textContent = 'Mon profil';
+                subtitle.textContent = 'Modifiez vos informations personnelles';
+            }
+
+            // Remplir les champs
+            document.getElementById('profile-firstName').value = userProfile.firstName || '';
+            document.getElementById('profile-lastName').value = userProfile.lastName || '';
+            document.getElementById('profile-email').value = userProfile.email || '';
+            document.getElementById('profile-address').value = userProfile.address || '';
+            document.getElementById('profile-transport').value = userProfile.transportMode || '';
+            document.getElementById('profile-preferences').value = userProfile.preferences || '';
+
+            // Bouton de navigation
+            const navButton = document.getElementById('nav-dashboard');
+            if (isProfileComplete()) {
+                navButton.style.display = 'inline-block';
+            } else {
+                navButton.style.display = 'none';
+            }
+        }
+
+        // Vérifier si le profil est complet
+        function isProfileComplete() {
+            return userProfile.address && 
+                   userProfile.transportMode && 
+                   userProfile.preferences;
+        }
+
+        // Afficher/Cacher le loading
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('profile-content').classList.remove('hidden');
+        }
+
+        // Gérer la soumission du formulaire
+        async function handleProfileSubmit(event) {
+            event.preventDefault();
+            
+            const submitBtn = document.getElementById('submit-btn');
+            const originalText = submitBtn.textContent;
+            
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Sauvegarde...';
+
+                // Récupérer les données du formulaire
+                const formData = new FormData(event.target);
+                const profileData = {
+                    firstName: formData.get('firstName'),
+                    lastName: formData.get('lastName'),
+                    address: formData.get('address'),
+                    transportMode: formData.get('transportMode'),
+                    preferences: formData.get('preferences'),
+                    profileCompleted: true,
+                    lastUpdated: new Date().toISOString()
+                };
+
+                // Validation côté client
+                if (!profileData.address || !profileData.transportMode || !profileData.preferences) {
+                    showMessage('Veuillez remplir tous les champs obligatoires', 'error');
+                    return;
+                }
+
+                // Mise à jour en base
+                await updateDoc(doc(db, 'users', currentUser.uid), profileData);
+                
+                userProfile = { ...userProfile, ...profileData };
+                
+                showMessage('Profil mis à jour avec succès !');
+                
+                // Redirection vers dashboard après 2 secondes
+                setTimeout(() => {
+                    window.location.href = 'dashboard.html';
+                }, 2000);
+
+            } catch (error) {
+                console.error('Erreur sauvegarde profil:', error);
+                showMessage('Erreur lors de la sauvegarde', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        }
+
+        // Déconnexion
+        async function logout() {
+            try {
+                await signOut(auth);
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Erreur déconnexion:', error);
+                showMessage('Erreur lors de la déconnexion', 'error');
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            // Formulaire de profil
+            const profileForm = document.getElementById('profile-form');
+            if (profileForm) {
+                profileForm.addEventListener('submit', handleProfileSubmit);
+            }
+
+            // Bouton déconnexion
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', logout);
+            }
+
+            // Navigation vers dashboard
+            const navDashboard = document.getElementById('nav-dashboard');
+            if (navDashboard) {
+                navDashboard.addEventListener('click', () => {
+                    window.location.href = 'dashboard.html';
+                });
+            }
+        });
+    </script>
+</head>
+<body>
+    <div class="background-image"></div>
+    <div class="container">
+        
+        <!-- Indicateur de chargement -->
+        <div id="loading" class="loading">
+            <h2>Chargement de votre profil...</h2>
+            <div class="loading-spinner">⏳</div>
+        </div>
+
+        <!-- Contenu du profil -->
+        <div id="profile-content" class="profile-content hidden">
+            <header class="profile-header">
+                <div>
+                    <h1 id="page-title">Mon profil</h1>
+                    <p id="page-subtitle">Modifiez vos informations personnelles</p>
+                </div>
+                <div class="header-actions">
+                    <button id="nav-dashboard" class="button button-secondary" style="display: none;">
+                        Dashboard
+                    </button>
+                    <button id="logout-btn" class="button-logout">
+                        Déconnexion
+                    </button>
+                </div>
+            </header>
+
+            <!-- Formulaire de profil -->
+            <form id="profile-form" class="profile-form">
+                <!-- Informations personnelles -->
+                <section class="form-section">
+                    <h3>👤 Informations personnelles</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="profile-firstName">Prénom</label>
+                            <input type="text" id="profile-firstName" name="firstName" placeholder="Votre prénom" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label for="profile-lastName">Nom</label>
+                            <input type="text" id="profile-lastName" name="lastName" placeholder="Votre nom" readonly>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="profile-email">Adresse e-mail</label>
+                        <input type="email" id="profile-email" name="email" placeholder="votre@email.com" readonly>
+                    </div>
+                </section>
+
+                <!-- Informations de localisation -->
+                <section class="form-section">
+                    <h3>📍 Localisation</h3>
+                    
+                    <div class="form-group">
+                        <label for="profile-address">Adresse *</label>
+                        <input type="text" id="profile-address" name="address" placeholder="123 Rue de la Paix, 75000 Paris" required>
+                    </div>
+                </section>
+
+                <!-- Transport -->
+                <section class="form-section">
+                    <h3>🚗 Moyen de transport</h3>
+                    
+                    <div class="form-group">
+                        <label for="profile-transport">Mode de transport *</label>
+                        <select id="profile-transport" name="transportMode" required>
+                            <option value="">Sélectionnez votre moyen de transport</option>
+                            <option value="walking">🚶 À pied</option>
+                            <option value="bicycle">🚲 Vélo</option>
+                            <option value="scooter">🛵 Scooter</option>
+                            <option value="car">🚗 Voiture</option>
+                            <option value="public_transport">🚌 Transport en commun</option>
+                            <option value="mixed">🔄 Plusieurs moyens</option>
+                        </select>
+                    </div>
+                </section>
+
+                <!-- Préférences -->
+                <section class="form-section">
+                    <h3>🍺 Préférences</h3>
+                    
+                    <div class="form-group">
+                        <label for="profile-preferences">Vos préférences *</label>
+                        <textarea id="profile-preferences" name="preferences" rows="4" 
+                                  placeholder="Décrivez vos préférences : type d'ambiance, musique, nourriture, prix..." required></textarea>
+                    </div>
+                </section>
+
+                <!-- Actions -->
+                <div class="form-actions">
+                    <button type="submit" id="submit-btn" class="button">
+                        Sauvegarder mon profil
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

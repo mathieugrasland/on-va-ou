@@ -418,3 +418,159 @@ a:hover {
 .text-italic {
     font-style: italic;
 }
+
+/* ===== PROFILE PAGE STYLES ===== */
+.profile-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.profile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--input-border);
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.button-logout {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.button-logout:hover {
+    background: #c82333;
+}
+
+.profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.form-section {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-light);
+}
+
+.form-section h3 {
+    margin: 0 0 20px 0;
+    color: var(--primary-color);
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-weight: 500;
+    color: var(--dark-text);
+    font-size: 14px;
+}
+
+.form-group input[readonly] {
+    background: #f8f9fa;
+    color: #6c757d;
+    cursor: not-allowed;
+}
+
+.form-group select {
+    padding: 15px 20px;
+    border: 2px solid var(--input-border);
+    border-radius: 12px;
+    font-size: 16px;
+    font-family: inherit;
+    transition: all var(--transition-speed);
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--dark-text);
+    cursor: pointer;
+}
+
+.form-group select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(93, 64, 55, 0.1);
+    background: rgba(255, 255, 255, 1);
+}
+
+.form-group textarea {
+    padding: 15px 20px;
+    border: 2px solid var(--input-border);
+    border-radius: 12px;
+    font-size: 16px;
+    font-family: inherit;
+    transition: all var(--transition-speed);
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--dark-text);
+    resize: vertical;
+    min-height: 100px;
+}
+
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(93, 64, 55, 0.1);
+    background: rgba(255, 255, 255, 1);
+}
+
+.form-group textarea::placeholder {
+    color: #999;
+    opacity: 1;
+}
+
+.form-actions {
+    text-align: center;
+    padding-top: 20px;
+}
+
+.form-actions .button {
+    min-width: 200px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* Mobile responsive pour le profil */
+@media (max-width: 768px) {
+    .profile-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .header-actions {
+        justify-content: center;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-section {
+        padding: 20px 15px;
+    }
+}
