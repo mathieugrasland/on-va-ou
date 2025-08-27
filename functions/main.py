@@ -7,7 +7,7 @@ import requests
 
 # 🚀 Cloud Functions pour "On va où ?" - Version 1.0.0
 # Dernière modification: 2025-08-27
-# Fonctions pour gestion des utilisateurs et recommandations de bars
+# Fonctions pour gestion des utilisateurs, géocodage et recommandations de bars
 
 # Configuration sécurisée
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', 'AIzaSyBUNmeroMLlCNzrpCi7-6VCGBGfJ4Eg4MQ')
@@ -411,4 +411,5 @@ def clean_duplicate_friend_requests(request):
 
     except Exception as e:
         print(f"Erreur nettoyage: {str(e)}")
-        return jsonify({"error": "Erreur lors du nettoyage"}), 500, headers
+                return jsonify({"error": "Erreur lors du nettoyage"}), 500, headers
+```
