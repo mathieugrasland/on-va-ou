@@ -131,26 +131,36 @@ jobs:
           pip install -r requirements.txt
           echo "✅ Python dependencies installed"
 
+      - name: Enable required APIs
+        run: |
+          # Activer les APIs nécessaires pour Cloud Functions
+          gcloud services enable cloudfunctions.googleapis.com --project on-va-ou-470217
+          gcloud services enable cloudbuild.googleapis.com --project on-va-ou-470217
+          gcloud services enable run.googleapis.com --project on-va-ou-470217
+          echo "✅ Required APIs enabled"
+
       - name: Deploy Cloud Functions with secure geocoding
         env:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         working-directory: functions
         run: |
-          # Déployer la fonction de géocodage sécurisée
+          # Déployer la fonction de géocodage sécurisée (1st gen pour simplicité)
           gcloud functions deploy geocode_address \
             --runtime python311 \
             --trigger-http \
             --allow-unauthenticated \
+            --no-gen2 \
             --source . \
             --entry-point geocode_address \
             --set-env-vars GOOGLE_MAPS_API_KEY="${GOOGLE_MAPS_API_KEY}" \
             --project on-va-ou-470217
           
-          # Déployer les autres fonctions
+          # Déployer les autres fonctions (1st gen)
           gcloud functions deploy get_user_profile \
             --runtime python311 \
             --trigger-http \
             --allow-unauthenticated \
+            --no-gen2 \
             --source . \
             --entry-point get_user_profile \
             --project on-va-ou-470217
@@ -159,6 +169,7 @@ jobs:
             --runtime python311 \
             --trigger-http \
             --allow-unauthenticated \
+            --no-gen2 \
             --source . \
             --entry-point update_user_profile \
             --project on-va-ou-470217
@@ -167,9 +178,9 @@ jobs:
             --runtime python311 \
             --trigger-http \
             --allow-unauthenticated \
+            --no-gen2 \
             --source . \
             --entry-point send_friend_request \
-            --runtime python311 \
             --project on-va-ou-470217
           
           echo "✅ All Cloud Functions deployed successfully"
