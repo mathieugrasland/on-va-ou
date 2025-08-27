@@ -15,51 +15,74 @@
             min-height: 100vh;
             position: relative;
             z-index: 1;
-            padding: 20px 0;
+        }
+
+        /* Header commun */
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px) saturate(1.2);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand h1 {
+            margin: 0;
+            color: #4285F4;
+            font-weight: 600;
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .nav-brand h1:hover {
+            color: #3367D6;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .nav-link {
+            color: #4285F4;
+            font-weight: 600;
+            font-size: 18px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: #3367D6;
+        }
+
+        .nav-logout {
+            background: none;
+            border: none;
+            color: #EA4335;
+            font-size: 20px;
+            cursor: pointer;
+            transition: color 0.3s ease;
+            padding: 5px;
+        }
+
+        .nav-logout:hover {
+            color: #D33B2C;
         }
 
         /* Container principal responsive */
         .profile-content {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0 20px;
+            padding: 20px;
             box-sizing: border-box;
-        }
-
-        /* Header du profil amélioré */
-        .profile-header {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(12px) saturate(1.2);
-            border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-
-        .profile-header h1 {
-            margin: 0;
-            color: #4285F4;
-            font-weight: 600;
-            font-size: 28px;
-        }
-
-        .profile-header p {
-            margin: 5px 0 0;
-            color: #666;
-            font-size: 16px;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
         }
 
         /* Formulaire responsive en grid */
@@ -208,7 +231,29 @@
             font-size: 14px;
         }
 
+        /* Centrer le bouton de sauvegarde */
+        .form-actions {
+            text-align: center;
+            padding: 20px 0;
+        }
+
         @media (max-width: 768px) {
+            .navbar {
+                padding: 10px 15px;
+            }
+
+            .nav-brand h1 {
+                font-size: 20px;
+            }
+
+            .nav-actions {
+                gap: 15px;
+            }
+
+            .nav-link {
+                font-size: 16px;
+            }
+
             .button, .button-secondary, .button-logout {
                 padding: 10px 20px;
                 font-size: 13px;
@@ -864,8 +909,8 @@
             }
         }
 
-        // Déconnexion
-        async function logout() {
+        // Déconnexion globale
+        window.logout = async function() {
             try {
                 await signOut(auth);
                 window.location.href = 'index.html';
@@ -873,7 +918,7 @@
                 console.error('Erreur déconnexion:', error);
                 showMessage('Erreur lors de la déconnexion', 'error');
             }
-        }
+        };
 
         // Event listeners
         document.addEventListener('DOMContentLoaded', () => {
@@ -881,25 +926,6 @@
             const profileForm = document.getElementById('profile-form');
             if (profileForm) {
                 profileForm.addEventListener('submit', handleProfileSubmit);
-            }
-
-            // Bouton déconnexion
-            const logoutBtn = document.getElementById('logout-btn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', logout);
-            }
-
-            // Navigation vers dashboard
-            const navDashboard = document.getElementById('nav-dashboard');
-            if (navDashboard) {
-                navDashboard.addEventListener('click', () => {
-                    // Vérifier si le profil est complet avant de naviguer
-                    if (userProfile && userProfile.profileCompleted) {
-                        window.location.href = 'dashboard.html';
-                    } else {
-                        showMessage('Veuillez d\'abord compléter votre profil', 'error');
-                    }
-                });
             }
 
             // Formulaire d'ajout d'ami
@@ -928,6 +954,17 @@
     <div class="background-image"></div>
     <div class="profile-wrapper">
         
+        <!-- Header commun -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1 onclick="window.location.href='dashboard.html'">On va où ?</h1>
+            </div>
+            <div class="nav-actions">
+                <span class="nav-link">Profil</span>
+                <button onclick="logout()" class="nav-logout" title="Déconnexion">🚪</button>
+            </div>
+        </nav>
+        
         <!-- Indicateur de chargement -->
         <div id="loading" class="loading">
             <h2>Chargement de votre profil...</h2>
@@ -936,20 +973,45 @@
 
         <!-- Contenu du profil -->
         <div id="profile-content" class="profile-content hidden">
-            <header class="profile-header">
-                <div>
-                    <h1 id="page-title">Mon profil</h1>
-                    <p id="page-subtitle">Modifiez vos informations personnelles</p>
+            <!-- Section amis remontée -->
+            <section class="friends-section">
+                <h3>👥 Mes amis</h3>
+                
+                <!-- Ajouter un ami -->
+                <div class="add-friend-form">
+                    <h4>➕ Ajouter un ami</h4>
+                    <form id="add-friend-form" class="inline-form">
+                        <div class="form-group-inline">
+                            <input type="email" id="friend-email" placeholder="Adresse email de votre ami" required>
+                            <button type="submit" class="button button-secondary">Envoyer une demande</button>
+                        </div>
+                    </form>
                 </div>
-                <div class="header-actions">
-                    <button id="nav-dashboard" class="button button-secondary" style="display: none;">
-                        Dashboard
-                    </button>
-                    <button id="logout-btn" class="button-logout">
-                        Déconnexion
-                    </button>
+
+                <!-- Demandes reçues -->
+                <div class="friend-requests-received">
+                    <h4>📥 Demandes reçues</h4>
+                    <div id="received-requests">
+                        <!-- Les demandes reçues seront chargées ici -->
+                    </div>
                 </div>
-            </header>
+
+                <!-- Demandes envoyées -->
+                <div class="friend-requests-sent">
+                    <h4>📤 Demandes envoyées</h4>
+                    <div id="sent-requests">
+                        <!-- Les demandes envoyées seront chargées ici -->
+                    </div>
+                </div>
+
+                <!-- Liste des amis -->
+                <div class="friends-list-container">
+                    <h4>✅ Mes amis</h4>
+                    <div id="friends-list">
+                        <!-- Les amis seront chargés ici -->
+                    </div>
+                </div>
+            </section>
 
             <!-- Formulaire de profil -->
             <form id="profile-form" class="profile-form">
@@ -1017,46 +1079,6 @@
                     </button>
                 </div>
             </form>
-
-            <!-- Section amis -->
-            <section class="friends-section">
-                <h3>👥 Mes amis</h3>
-                
-                <!-- Ajouter un ami -->
-                <div class="add-friend-form">
-                    <h4>➕ Ajouter un ami</h4>
-                    <form id="add-friend-form" class="inline-form">
-                        <div class="form-group-inline">
-                            <input type="email" id="friend-email" placeholder="Adresse email de votre ami" required>
-                            <button type="submit" class="button button-secondary">Envoyer une demande</button>
-                        </div>
-                    </form>
-                </div>
-
-                <!-- Demandes reçues -->
-                <div class="friend-requests-received">
-                    <h4>📥 Demandes reçues</h4>
-                    <div id="received-requests">
-                        <!-- Les demandes reçues seront chargées ici -->
-                    </div>
-                </div>
-
-                <!-- Demandes envoyées -->
-                <div class="friend-requests-sent">
-                    <h4>📤 Demandes envoyées</h4>
-                    <div id="sent-requests">
-                        <!-- Les demandes envoyées seront chargées ici -->
-                    </div>
-                </div>
-
-                <!-- Liste des amis -->
-                <div class="friends-list-container">
-                    <h4>✅ Mes amis</h4>
-                    <div id="friends-list">
-                        <!-- Les amis seront chargés ici -->
-                    </div>
-                </div>
-            </section>
         </div>
     </div>
 </body>

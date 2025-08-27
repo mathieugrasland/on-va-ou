@@ -22,7 +22,7 @@
             background: transparent;
         }
 
-        /* Amélioration de la navbar */
+        /* Amélioration de la navbar commune */
         .navbar {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(12px) saturate(1.2);
@@ -31,6 +31,9 @@
             position: sticky;
             top: 0;
             z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .nav-brand h1 {
@@ -38,6 +41,45 @@
             color: #4285F4;
             font-weight: 600;
             font-size: 24px;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .nav-brand h1:hover {
+            color: #3367D6;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .nav-link {
+            color: #4285F4;
+            font-weight: 600;
+            font-size: 18px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: #3367D6;
+        }
+
+        .nav-logout {
+            background: none;
+            border: none;
+            color: #EA4335;
+            font-size: 20px;
+            cursor: pointer;
+            transition: color 0.3s ease;
+            padding: 5px;
+        }
+
+        .nav-logout:hover {
+            color: #D33B2C;
         }
 
         /* Anciens styles de carte - seront remplacés par les nouveaux */
@@ -116,40 +158,6 @@
             border-radius: 5px;
             margin-bottom: 20px;
             border-left: 4px solid #2e7d32;
-        }
-
-        /* Footer utilisateur en bas de page */
-        .user-footer {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(12px) saturate(1.2);
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 20px;
-            margin-top: 40px;
-            text-align: center;
-            border-radius: 20px 20px 0 0;
-        }
-
-        .user-info {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-
-        .btn-logout {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background 0.3s ease;
-        }
-
-        .btn-logout:hover {
-            background: #c82333;
         }
 
         /* Layout principal responsive */
@@ -243,33 +251,6 @@
             margin: 0 auto;
         }
 
-        /* Bouton profil flottant */
-        .floating-profile-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background: #4285F4;
-            color: white;
-            border: none;
-            font-size: 20px;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            transition: all 0.3s ease;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .floating-profile-btn:hover {
-            background: #3367D6;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-        }
-
         @media (max-width: 768px) {
             .dashboard-container {
                 padding: 10px 0;
@@ -295,20 +276,7 @@
                 margin: 0;
                 border-radius: 15px;
             }
-            
-            .floating-profile-btn {
-                width: 45px;
-                height: 45px;
-                font-size: 18px;
-                top: 15px;
-                right: 15px;
-            }
-            
-            .user-info {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
+
             .friends-list {
                 grid-template-columns: 1fr;
                 gap: 10px;
@@ -323,6 +291,18 @@
             .navbar {
                 padding: 10px 15px;
             }
+
+            .nav-brand h1 {
+                font-size: 20px;
+            }
+
+            .nav-actions {
+                gap: 15px;
+            }
+
+            .nav-link {
+                font-size: 16px;
+            }
         }
     </style>
 </head>
@@ -331,7 +311,11 @@
     <div class="dashboard-wrapper">
         <nav class="navbar">
             <div class="nav-brand">
-                <h1>On va où ?</h1>
+                <h1 onclick="window.location.href='dashboard.html'">On va où ?</h1>
+            </div>
+            <div class="nav-actions">
+                <a href="profile.html" class="nav-link">Profil</a>
+                <button onclick="logout()" class="nav-logout" title="Déconnexion">🚪</button>
             </div>
         </nav>
 
@@ -359,20 +343,7 @@
                 </div>
             </div>
         </div>
-
-        <!-- Informations utilisateur en bas de page -->
-        <footer class="user-footer">
-            <div class="user-info">
-                <span id="user-name">Chargement...</span>
-                <button id="logout-btn" class="btn-logout">Déconnexion</button>
-            </div>
-        </footer>
     </div>
-
-    <!-- Bouton profil flottant -->
-    <button id="profile-btn" class="floating-profile-btn" title="Mon Profil">
-        👤
-    </button>
 
     <!-- Google Maps avec clé publique restreinte -->
     <script async defer
@@ -479,7 +450,6 @@
                 currentUser = user;
                 userAuthenticated = true;
                 
-                await loadUserProfile();
                 await loadFriendsList();
                 
                 // Essayer d'initialiser la carte maintenant que l'utilisateur est authentifié
@@ -489,21 +459,6 @@
                 window.location.href = 'login.html';
             }
         });
-
-        // Charger le profil utilisateur
-        async function loadUserProfile() {
-            try {
-                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
-                    document.getElementById('user-name').textContent = 
-                        userData.firstName || currentUser.email;
-                }
-            } catch (error) {
-                console.error('Erreur chargement profil:', error);
-            }
-        }
 
         // Charger la liste des amis
         async function loadFriendsList() {
@@ -582,14 +537,21 @@
             }, 5000);
         }
 
-        // Événements
-        document.getElementById('logout-btn').addEventListener('click', () => {
-            signOut(auth)
-                .then(() => window.location.href = 'login.html')
-                .catch(error => console.error('Erreur déconnexion:', error));
-        });
+        // Fonction logout globale
+        window.logout = async function() {
+            try {
+                await signOut(auth);
+                window.location.href = 'login.html';
+            } catch (error) {
+                console.error('Erreur déconnexion:', error);
+                showMessage('Erreur lors de la déconnexion', 'error');
+            }
+        };
 
-        document.getElementById('profile-btn').addEventListener('click', () => {
+        // Événements
+        document.getElementById('logout-btn')?.addEventListener('click', logout);
+
+        document.getElementById('profile-btn')?.addEventListener('click', () => {
             window.location.href = 'profile.html';
         });
     </script>

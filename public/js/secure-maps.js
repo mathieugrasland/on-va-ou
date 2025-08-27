@@ -1,14 +1,6 @@
 /**
- *        this.baseUrl = 'https://us-central1-on-va-ou-470217.cloudfunctions.net';Service de géocodage sécurisé utilisant les Cloud Functions
- *    async loadFriendsLocations() {
-        try {
-            const user = this.auth?.currentUser;
-            if (!user || !this.db) return;
-
-            const userDoc = await this.db
-                .collection('users')
-                .doc(user.uid)
-                .get();proche protège la clé API en la cachant côté serveur
+ * Service de géocodage sécurisé utilisant les Cloud Functions
+ * Cette approche protège la clé API en la cachant côté serveur
  */
 
 class SecureGeocodingService {
