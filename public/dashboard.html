@@ -359,6 +359,20 @@
     </div>
 
     <script type="module">
+        // Palette de couleurs commune pour amis
+        const FRIEND_COLORS = [
+            '#FF5733', // Orange
+            '#33FF57', // Vert clair
+            '#3357FF', // Bleu
+            '#FF33F5', // Rose
+            '#33FFF5', // Cyan
+            '#F5FF33', // Jaune
+            '#9933FF', // Violet
+            '#FF3333', // Rouge
+            '#33FFB5', // Turquoise
+            '#FFB533'  // Orange clair
+        ];
+
         import { auth, db } from './firebase-config.js';
         import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
@@ -512,7 +526,7 @@
 
             const hasAddress = friendData.address && friendData.address.trim();
             const statusClass = hasAddress ? 'status-online' : 'status-offline';
-            const color = secureMapManager.friendColors[index % secureMapManager.friendColors.length];
+            const color = FRIEND_COLORS[index % FRIEND_COLORS.length]; // <-- on prend la palette globale
 
             card.innerHTML = `
                 <div class="friend-name" style="color: ${color}; font-weight: bold;">
@@ -523,6 +537,7 @@
 
             return card;
         }
+
 
         // Afficher un message
         function showMessage(text, type = 'info') {
