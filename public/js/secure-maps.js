@@ -6,6 +6,8 @@
 // Import des fonctions Firestore v9+
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
+export
+
 class SecureGeocodingService {
     constructor(auth = null) {
         this.baseUrl = 'https://us-central1-on-va-ou-470217.cloudfunctions.net';

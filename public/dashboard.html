@@ -362,9 +362,6 @@
         src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBs1O6cYYxNLE2vB9gEcmhEhONrditDyCo&callback=initGoogleMaps&loading=async">
     </script>
 
-    <!-- Service de géocodage sécurisé -->
-    <script src="js/secure-maps.js"></script>
-
     <!-- Fonction globale pour Google Maps callback -->
     <script>
         // Fonction globale accessible par Google Maps API
@@ -372,7 +369,6 @@
             console.log('Google Maps API chargée, vérification...');
             if (typeof google !== 'undefined' && google.maps) {
                 console.log('Google Maps disponible, déclenchement événement');
-                // Déclencher un événement personnalisé que le module pourra écouter
                 window.dispatchEvent(new CustomEvent('googleMapsLoaded'));
             } else {
                 console.error('Google Maps API appelée mais objet google non disponible');
@@ -397,6 +393,7 @@
     <script type="module">
         import { auth, db } from './firebase-config.js';
         import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+        import { SecureMapManager } from './js/secure-maps.js';
         import { doc, getDoc, setDoc, collection, query, where, getDocs, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
         let secureMapManager = null;
         let currentUser = null;
@@ -405,44 +402,48 @@
         let mapInitialized = false;
 
         // Écouter l'événement de chargement Google Maps
-        window.addEventListener('googleMapsLoaded', initSecureMap);
+        window.addEventListener('googleMapsLoaded', () => {
+            console.log('Événement Google Maps reçu');
+            googleMapsLoaded = true;
+            tryInitializeMap();
+        });
 
         // Fonction centralisée pour vérifier et initialiser la carte
         function tryInitializeMap() {
             console.log('Vérification conditions:', {
                 googleMapsLoaded,
                 userAuthenticated,
-                mapInitialized,
-                secureMapManager: !!secureMapManager
+                mapInitialized
             });
             
-            if (googleMapsLoaded && userAuthenticated && !mapInitialized && secureMapManager) {
+            if (googleMapsLoaded && userAuthenticated && !mapInitialized) {
                 console.log('Toutes les conditions remplies, initialisation de la carte...');
                 initializeMapForUser();
             }
         }
 
-        // Fonction d'initialisation de la carte sécurisée
-        function initSecureMap() {
-            console.log('Initialisation du gestionnaire de carte sécurisé...');
-            
-            // Vérifier que SecureMapManager est disponible
-            if (typeof SecureMapManager === 'undefined') {
-                console.error('SecureMapManager non disponible, attente...');
-                setTimeout(initSecureMap, 100); // Réessayer dans 100ms
-                return;
+        // Initialiser la carte pour l'utilisateur connecté
+        async function initializeMapForUser() {
+            try {
+                console.log('Initialisation de la carte pour utilisateur...');
+                await secureMapManager.initializeMap();
+                await secureMapManager.loadFriendsLocations();
+                mapInitialized = true;
+                console.log('Carte initialisée avec succès');
+                
+            } catch (error) {
+                console.error('Erreur initialisation carte:', error);
+                showMessage('Erreur lors du chargement de la carte', 'error');
             }
-            
-            secureMapManager = new SecureMapManager('map-container', auth, db);
-            googleMapsLoaded = true;
-            
-            console.log('Google Maps chargé et SecureMapManager créé');
-            tryInitializeMap();
         }
 
         // Initialiser la carte pour l'utilisateur connecté
         async function initializeMapForUser() {
             try {
+                if (!secureMapManager) {
+                    secureMapManager = new SecureMapManager('map-container', auth, db);
+                }
+                
                 console.log('Initialisation de la carte pour utilisateur...');
                 await secureMapManager.initializeMap();
                 await secureMapManager.loadFriendsLocations();
