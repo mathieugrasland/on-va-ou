@@ -208,7 +208,8 @@ export class SecureMapManager {
                 fillColor: color,
                 fillOpacity: 1,
                 strokeColor: '#ffffff',
-                strokeWeight: 2
+                strokeWeight: 2,
+                labelOrigin: new google.maps.Point(0, -15)
             },
             label: {
                 text: name,
