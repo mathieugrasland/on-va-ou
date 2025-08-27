@@ -1,11 +1,20 @@
 /**
  *        this.baseUrl = 'https://us-central1-on-va-ou-470217.cloudfunctions.net';Service de géocodage sécurisé utilisant les Cloud Functions
- * Cette approche protège la clé API en la cachant côté serveur
+ *    async loadFriendsLocations() {
+        try {
+            const user = this.auth?.currentUser;
+            if (!user || !this.db) return;
+
+            const userDoc = await this.db
+                .collection('users')
+                .doc(user.uid)
+                .get();proche protège la clé API en la cachant côté serveur
  */
 
 class SecureGeocodingService {
-    constructor() {
+    constructor(auth = null) {
         this.baseUrl = 'https://us-central1-on-va-ou-470217.cloudfunctions.net';
+        this.auth = auth;
     }
 
     /**
@@ -15,7 +24,7 @@ class SecureGeocodingService {
      */
     async geocodeAddress(address) {
         try {
-            const user = firebase.auth().currentUser;
+            const user = this.auth?.currentUser;
             if (!user) {
                 throw new Error('Utilisateur non authentifié');
             }
@@ -75,13 +84,15 @@ class SecureGeocodingService {
  * Gestionnaire de carte sécurisée avec géocodage côté serveur
  */
 class SecureMapManager {
-    constructor(mapElementId) {
+    constructor(mapElementId, auth = null, db = null) {
         this.mapElementId = mapElementId;
         this.map = null;
         this.userMarker = null;
         this.friendMarkers = [];
-        this.geocodingService = new SecureGeocodingService();
+        this.geocodingService = new SecureGeocodingService(auth);
         this.isInitialized = false;
+        this.auth = auth;
+        this.db = db;
     }
 
     /**
@@ -119,10 +130,10 @@ class SecureMapManager {
      */
     async loadUserLocation() {
         try {
-            const user = firebase.auth().currentUser;
-            if (!user) return;
+            const user = this.auth?.currentUser;
+            if (!user || !this.db) return;
 
-            const userDoc = await firebase.firestore()
+            const userDoc = await this.db
                 .collection('users')
                 .doc(user.uid)
                 .get();
@@ -148,10 +159,10 @@ class SecureMapManager {
      */
     async loadFriendsLocations() {
         try {
-            const user = firebase.auth().currentUser;
-            if (!user) return;
+            const user = this.auth?.currentUser;
+            if (!user || !this.db) return;
 
-            const userDoc = await firebase.firestore()
+            const userDoc = await this.db
                 .collection('users')
                 .doc(user.uid)
                 .get();
@@ -166,7 +177,7 @@ class SecureMapManager {
             const friendsData = await Promise.all(
                 friends.map(async friendId => {
                     try {
-                        const friendDoc = await firebase.firestore()
+                        const friendDoc = await this.db
                             .collection('users')
                             .doc(friendId)
                             .get();

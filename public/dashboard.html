@@ -216,7 +216,7 @@
 
     <!-- Google Maps avec clé publique restreinte -->
     <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBUNmeroMLlCNzrpCi7-6VCGBGfJ4Eg4MQ&callback=initGoogleMaps&loading=async">
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBs1O6cYYxNLE2vB9gEcmhEhONrditDyCo&callback=initGoogleMaps&loading=async">
     </script>
 
     <!-- Service de géocodage sécurisé -->
@@ -253,7 +253,7 @@
         function initSecureMap() {
             console.log('Initialisation du gestionnaire de carte sécurisé...');
             
-            secureMapManager = new SecureMapManager('map-container');
+            secureMapManager = new SecureMapManager('map-container', auth, db);
             
             // Initialiser la carte une fois l'utilisateur connecté
             if (currentUser && secureMapManager && !secureMapManager.isInitialized) {
@@ -331,17 +331,6 @@
                 }
             });
         }
-
-        // Gestion de l'authentification
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                currentUser = user;
-                await loadUserProfile();
-                await loadFriendsList();
-            } else {
-                window.location.href = 'login.html';
-            }
-        });
 
         // Charger le profil utilisateur
         async function loadUserProfile() {
