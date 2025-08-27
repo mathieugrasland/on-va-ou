@@ -422,16 +422,23 @@
         // Accepter une demande d'amitié
         async function acceptFriendRequest(senderUid) {
             try {
-                // Ajouter aux listes d'amis des deux utilisateurs
+                console.log('🤝 Acceptation demande d\'amitié de:', senderUid);
+                
+                // Étape 1: Mettre à jour MON profil (ajouter ami + retirer demande reçue)
+                console.log('Étape 1: Mise à jour de mon profil...');
                 await updateDoc(doc(db, 'users', currentUser.uid), {
                     friends: arrayUnion(senderUid),
                     'friendRequests.received': arrayRemove(senderUid)
                 });
+                console.log('✅ Étape 1 réussie');
 
+                // Étape 2: Mettre à jour SON profil (ajouter ami + retirer demande envoyée)
+                console.log('Étape 2: Mise à jour de son profil...');
                 await updateDoc(doc(db, 'users', senderUid), {
                     friends: arrayUnion(currentUser.uid),
                     'friendRequests.sent': arrayRemove(currentUser.uid)
                 });
+                console.log('✅ Étape 2 réussie');
 
                 // Mettre à jour le profil local
                 if (!userProfile.friends) userProfile.friends = [];
@@ -445,7 +452,21 @@
                 await loadConfirmedFriends();
 
             } catch (error) {
-                console.error('Erreur acceptation demande:', error);
+                console.error('❌ Erreur acceptation demande:', error);
+                console.error('Détails erreur:', error.code, error.message);
+                
+                // En cas d'erreur partielle, essayer de nettoyer les changements
+                try {
+                    console.log('🧹 Tentative de nettoyage...');
+                    await updateDoc(doc(db, 'users', currentUser.uid), {
+                        friends: arrayRemove(senderUid),
+                        'friendRequests.received': arrayUnion(senderUid)
+                    });
+                    console.log('🧹 Nettoyage effectué');
+                } catch (cleanupError) {
+                    console.error('Erreur lors du nettoyage:', cleanupError);
+                }
+                
                 showMessage('Erreur lors de l\'acceptation', 'error');
             }
         }

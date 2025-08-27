@@ -9,12 +9,12 @@ service cloud.firestore {
       // Permettre à un utilisateur de créer/lire/modifier son propre profil
       allow read, write: if request.auth != null && request.auth.uid == userId;
       
-      // Permettre l'écriture des demandes d'amitié reçues SEULEMENT
+      // Permettre les opérations d'amitié cross-user (envoi, acceptation, refus)
       allow update: if request.auth != null 
                     && request.auth.uid != userId
-                    && resource.data.keys().hasAll(['friendRequests'])
+                    && resource.data.keys().hasAll(['friendRequests', 'friends'])
                     && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['friendRequests']);
+                       .hasOnly(['friendRequests', 'friends']);
       
       // Permettre la lecture limitée pour la recherche d'amis par email
       allow read: if request.auth != null;
