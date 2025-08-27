@@ -50,12 +50,12 @@
                         const userData = userDoc.data();
                         
                         const isProfileComplete = userData.profileCompleted && 
-                                                userData.firstName && 
-                                                userData.lastName && 
-                                                userData.email && 
-                                                userData.address && 
-                                                userData.transportMode && 
-                                                userData.preferences;
+                                                userData.firstName?.trim() && 
+                                                userData.lastName?.trim() && 
+                                                userData.email?.trim() && 
+                                                userData.address?.trim() && 
+                                                userData.transportMode?.trim() && 
+                                                userData.preferences?.trim();
                         
                         if (isProfileComplete) {
                             window.location.href = 'dashboard.html';
@@ -114,12 +114,12 @@
                         
                         // Vérifier si le profil est complet
                         const isProfileComplete = userData.profileCompleted && 
-                                                userData.firstName && 
-                                                userData.lastName && 
-                                                userData.email && 
-                                                userData.address && 
-                                                userData.transportMode && 
-                                                userData.preferences;
+                                                userData.firstName?.trim() && 
+                                                userData.lastName?.trim() && 
+                                                userData.email?.trim() && 
+                                                userData.address?.trim() && 
+                                                userData.transportMode?.trim() && 
+                                                userData.preferences?.trim();
                         
                         if (isProfileComplete) {
                             window.location.href = 'dashboard.html';

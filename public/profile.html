@@ -66,9 +66,9 @@
                     
                     // Vérifier si c'est un nouveau utilisateur ou un profil incomplet
                     // Après réparation, re-vérifier les champs pour déterminer si c'est vraiment un nouveau utilisateur
-                    const missingRequiredFields = !userProfile.firstName || !userProfile.lastName || 
-                                                !userProfile.address || !userProfile.transportMode || 
-                                                !userProfile.preferences;
+                    const missingRequiredFields = !userProfile.firstName?.trim() || !userProfile.lastName?.trim() || 
+                                                !userProfile.email?.trim() || !userProfile.address?.trim() || 
+                                                !userProfile.transportMode?.trim() || !userProfile.preferences?.trim();
                     
                     isNewUser = missingRequiredFields;
                     
@@ -143,21 +143,27 @@
             }
             
             // Logique simplifiée pour profileCompleted
-            const hasAllRequiredFields = (userProfile.firstName || updates.firstName !== undefined) && 
-                                        (userProfile.lastName || updates.lastName !== undefined) && 
-                                        (userProfile.email || updates.email !== undefined) && 
-                                        (userProfile.address || updates.address !== undefined) && 
-                                        (userProfile.transportMode || updates.transportMode !== undefined) && 
-                                        (userProfile.preferences || updates.preferences !== undefined);
+            const allCurrentFields = {
+                firstName: userProfile.firstName || updates.firstName,
+                lastName: userProfile.lastName || updates.lastName,
+                email: userProfile.email || updates.email,
+                address: userProfile.address || updates.address,
+                transportMode: userProfile.transportMode || updates.transportMode,
+                preferences: userProfile.preferences || updates.preferences
+            };
             
-            // Si tous les champs sont présents (ou seront présents après update) et que profileCompleted est false
-            if (hasAllRequiredFields && !userProfile.profileCompleted && !needsUpdate) {
-                updates.profileCompleted = true;
-                needsUpdate = true;
-            }
-            // Si des champs manquent, s'assurer que profileCompleted est false
-            else if (!hasAllRequiredFields) {
-                updates.profileCompleted = false;
+            const hasAllRequiredFields = allCurrentFields.firstName?.trim() && 
+                                        allCurrentFields.lastName?.trim() && 
+                                        allCurrentFields.email?.trim() && 
+                                        allCurrentFields.address?.trim() && 
+                                        allCurrentFields.transportMode?.trim() && 
+                                        allCurrentFields.preferences?.trim();
+            
+            // Déterminer la valeur correcte pour profileCompleted
+            const shouldBeCompleted = hasAllRequiredFields;
+            
+            if (userProfile.profileCompleted !== shouldBeCompleted) {
+                updates.profileCompleted = shouldBeCompleted;
                 needsUpdate = true;
             }
             
@@ -215,12 +221,12 @@
         // Vérifier si le profil est complet
         function isProfileComplete() {
             return userProfile.profileCompleted && 
-                   userProfile.firstName && 
-                   userProfile.lastName && 
-                   userProfile.email && 
-                   userProfile.address && 
-                   userProfile.transportMode && 
-                   userProfile.preferences;
+                   userProfile.firstName?.trim() && 
+                   userProfile.lastName?.trim() && 
+                   userProfile.email?.trim() && 
+                   userProfile.address?.trim() && 
+                   userProfile.transportMode?.trim() && 
+                   userProfile.preferences?.trim();
         }
 
         // Charger la liste des amis et demandes

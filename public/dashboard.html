@@ -37,12 +37,12 @@
                     
                     // Vérifier si le profil est complet avant d'afficher le dashboard
                     const isProfileComplete = userProfile.profileCompleted && 
-                                            userProfile.firstName && 
-                                            userProfile.lastName && 
-                                            userProfile.email && 
-                                            userProfile.address && 
-                                            userProfile.transportMode && 
-                                            userProfile.preferences;
+                                            userProfile.firstName?.trim() && 
+                                            userProfile.lastName?.trim() && 
+                                            userProfile.email?.trim() && 
+                                            userProfile.address?.trim() && 
+                                            userProfile.transportMode?.trim() && 
+                                            userProfile.preferences?.trim();
                     
                     if (!isProfileComplete) {
                         // Rediriger vers le profil si incomplet
