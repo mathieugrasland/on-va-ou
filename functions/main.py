@@ -252,7 +252,7 @@ def geocode_address(request):
                     },
                     "formatted_address": result['formatted_address']
                 }), 200, headers
-        else:
+            
             return jsonify({
                 "success": False,
                 "error": "Adresse non trouvée",
