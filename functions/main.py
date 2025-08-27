@@ -22,10 +22,6 @@ logger.add(
 
 # Configuration sécurisée
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
-if not GOOGLE_MAPS_API_KEY:
-    logger.warning("⚠️ Clé API Google Maps non trouvée dans les variables d'environnement, utilisation de la clé de secours")
-    GOOGLE_MAPS_API_KEY = 'AIzaSyBUNmeroMLlCNzrpCi7-6VCGBGfJ4Eg4MQ'
-logger.debug(f"État de la clé API: {'Définie depuis env' if os.environ.get('GOOGLE_MAPS_API_KEY') else 'Utilisation clé secours'}")
 
 # Initialisation optimisée de Firebase
 if not firebase_admin._apps:
