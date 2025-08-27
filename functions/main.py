@@ -4,6 +4,16 @@ from firebase_admin import credentials, auth, firestore
 from flask import jsonify
 import os
 import requests
+from loguru import logger
+
+# Configuration des logs
+logger.add(
+    "debug.log",
+    format="{time} {level} {message}",
+    level="DEBUG",
+    rotation="1 day",
+    retention="7 days"
+)
 
 # 🚀 Cloud Functions pour "On va où ?" - Version 1.0.0
 # Dernière modification: 2025-08-27
@@ -148,6 +158,10 @@ def update_user_profile(request):
 @functions_framework.http
 def geocode_address(request):
     """Géocoder une adresse de manière sécurisée via Google Maps API"""
+    logger.debug("🚀 Démarrage de la fonction geocode_address")
+    logger.debug(f"Méthode de requête: {request.method}")
+    logger.debug(f"Headers reçus: {dict(request.headers)}")
+    
     if request.method == 'OPTIONS':
         headers = {
             'Access-Control-Allow-Origin': '*',
@@ -155,6 +169,7 @@ def geocode_address(request):
             'Access-Control-Allow-Headers': 'Content-Type, Authorization',
             'Access-Control-Max-Age': '3600'
         }
+        logger.debug("Réponse OPTIONS CORS")
         return ('', 204, headers)
 
     headers = {'Access-Control-Allow-Origin': '*'}
@@ -162,22 +177,35 @@ def geocode_address(request):
     try:
         # Vérification du token d'authentification
         authorization = request.headers.get('Authorization')
+        logger.debug(f"Authorization header présent: {bool(authorization)}")
+        
         if not authorization or not authorization.startswith('Bearer '):
+            logger.error("Token d'authentification manquant ou mal formaté")
             return jsonify({"error": "Token d'authentification manquant"}), 401, headers
 
         id_token = authorization.split(' ')[1]
+        logger.debug("Vérification du token...")
         decoded_token = auth.verify_id_token(id_token)
+        logger.info(f"Token vérifié pour l'utilisateur: {decoded_token.get('uid')}")
         
         # Récupérer l'adresse depuis la requête
         request_json = request.get_json(silent=True)
+        logger.debug(f"Contenu de la requête: {request_json}")
+        
         if not request_json or 'address' not in request_json:
+            logger.error("Données JSON manquantes ou sans adresse")
             return jsonify({"error": "Adresse manquante"}), 400, headers
         
         address = request_json['address'].strip()
+        logger.info(f"Adresse reçue: {address}")
+        
         if not address:
+            logger.error("Adresse vide après nettoyage")
             return jsonify({"error": "Adresse vide"}), 400, headers
         
         # Appel sécurisé à l'API Google Places Autocomplete puis Geocoding
+        logger.info("🔍 Démarrage de la recherche d'adresse")
+        
         # D'abord, essayons de trouver des suggestions avec Places
         places_url = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
         geocoding_url = "https://maps.googleapis.com/maps/api/geocode/json"
@@ -190,9 +218,16 @@ def geocode_address(request):
             'components': 'country:fr'  # Limite à la France
         }
         
+        logger.debug(f"Places API URL: {places_url}")
+        logger.debug(f"Places params (sans clé API): {dict(places_params, key='[MASQUÉ]')}")
+        
         places_response = requests.get(places_url, params=places_params, timeout=10)
+        logger.debug(f"Places API status code: {places_response.status_code}")
         places_response.raise_for_status()
+        
         places_data = places_response.json()
+        logger.debug(f"Places API response status: {places_data.get('status')}")
+        logger.debug(f"Nombre de prédictions: {len(places_data.get('predictions', []))}")
         
         if places_data['status'] == 'OK' and places_data['predictions']:
             # Utiliser la première suggestion
@@ -240,35 +275,39 @@ def geocode_address(request):
         response.raise_for_status()
         geocoding_data = response.json()
         
-        if geocoding_data['status'] == 'OK' and geocoding_data['results']:
-            result = geocoding_data['results'][0]
-            location = result['geometry']['location']
-            
-            return jsonify({
-                "success": True,
-                "location": {
-                    "lat": location['lat'],
-                    "lng": location['lng']
-                },
-                "formatted_address": result['formatted_address']
-            }), 200, headers
+            if geocoding_data['status'] == 'OK' and geocoding_data['results']:
+                result = geocoding_data['results'][0]
+                location = result['geometry']['location']
+                logger.info(f"✅ Localisation trouvée: {location}")
+                logger.debug(f"Adresse formatée: {result['formatted_address']}")
+                
+                response_data = {
+                    "success": True,
+                    "location": {
+                        "lat": location['lat'],
+                        "lng": location['lng']
+                    },
+                    "formatted_address": result['formatted_address']
+                }
+                logger.debug(f"Réponse finale: {response_data}")
+                return jsonify(response_data), 200, headers
         
-        return jsonify({
-            "success": False,
-            "error": "Adresse non trouvée",
-            "status": geocoding_data['status']
-        }), 404, headers
+            logger.warning(f"❌ Géocodage échoué. Status: {geocoding_data['status']}")
+            return jsonify({
+                "success": False,
+                "error": "Adresse non trouvée",
+                "status": geocoding_data['status']
+            }), 404, headers
 
-    except auth.InvalidIdTokenError:
+    except auth.InvalidIdTokenError as e:
+        logger.error(f"🔒 Erreur token invalide: {str(e)}")
         return jsonify({"error": "Token invalide"}), 401, headers
     except requests.RequestException as e:
-        print(f"Erreur API Google: {e}")
+        logger.error(f"🌐 Erreur API Google: {str(e)}")
         return jsonify({"error": "Erreur service de géolocalisation"}), 503, headers
     except Exception as e:
-        print(f"Erreur: {e}")
-        return jsonify({"error": "Erreur interne du serveur"}), 500, headers
-
-@functions_framework.http
+        logger.error(f"💥 Erreur inattendue: {str(e)}", exc_info=True)
+        return jsonify({"error": "Erreur interne du serveur"}), 500, headers@functions_framework.http
 def send_friend_request(request):
     """Envoyer une demande d'ami"""
     if request.method == 'OPTIONS':
