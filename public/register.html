@@ -5,6 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inscription - On va où ?</title>
     <link rel="stylesheet" href="style.css">
+    
+    <!-- Firebase App (the core Firebase SDK) -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+        import { getAuth, createUserWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
+        import { getFirestore, doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyBs1O6cYYxNLE2vB9gEcmhEhONrditDyCo",
+            authDomain: "on-va-ou-470217.firebaseapp.com",
+            projectId: "on-va-ou-470217",
+            storageBucket: "on-va-ou-470217.firebasestorage.app",
+            messagingSenderId: "687464295451",
+            appId: "1:687464295451:web:b228ea2a0ddc668e5f1cbe",
+            measurementId: "G-2PCHXTT6DW"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Vérifier si l'utilisateur est déjà connecté
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                window.location.href = 'dashboard.html';
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const registerForm = document.getElementById('register-form');
+
+            if (registerForm) {
+                registerForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const firstName = e.target.firstName.value;
+                    const lastName = e.target.lastName.value;
+                    const email = e.target.email.value;
+                    const password = e.target.password.value;
+
+                    try {
+                        // Créer l'utilisateur avec Firebase Auth
+                        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                        const user = userCredential.user;
+                        console.log('Utilisateur créé:', user.uid);
+
+                        // Sauvegarder le profil dans Firestore
+                        await setDoc(doc(db, 'users', user.uid), {
+                            firstName: firstName,
+                            lastName: lastName,
+                            email: email,
+                            preferences: {},
+                            address: '',
+                            createdAt: new Date()
+                        });
+
+                        console.log('Profil sauvegardé dans Firestore');
+                        alert('Inscription réussie ! Vous êtes maintenant connecté.');
+                        window.location.href = 'dashboard.html';
+                    } catch (error) {
+                        console.error('Erreur inscription:', error);
+                        alert('Erreur: ' + error.message);
+                    }
+                });
+            }
+        });
+    </script>
 </head>
 <body>
     <div class="background-image"></div>
@@ -19,6 +85,5 @@
         </form>
         <p><a href="login.html">Ici la connexion, pourquoi tu t'inscris si tu as déjà un compte 🧐</a></p>
     </div>
-    <script type="module" src="app.js"></script>
 </body>
 </html>
