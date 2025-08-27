@@ -1,0 +1,21 @@
+{
+  "name": "On va où ?",
+  "short_name": "OnVaOu",
+  "description": "Trouvez le bar parfait entre amis",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#5d4037",
+  "theme_color": "#5d4037",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
