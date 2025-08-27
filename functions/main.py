@@ -411,5 +411,4 @@ def clean_duplicate_friend_requests(request):
 
     except Exception as e:
         print(f"Erreur nettoyage: {str(e)}")
-                return jsonify({"error": "Erreur lors du nettoyage"}), 500, headers
-```
+        return jsonify({"error": "Erreur lors du nettoyage"}), 500, headers
