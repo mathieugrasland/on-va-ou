@@ -183,7 +183,7 @@ export class SecureMapManager {
                 fillOpacity: 1,
                 strokeColor: '#ffffff',
                 strokeWeight: 1,
-                labelOrigin: new google.maps.Point(-1, -3)
+                labelOrigin: new google.maps.Point(-1, -2)
             },
             label: {
                 text: name,            // Le prénom affiché
@@ -210,7 +210,7 @@ export class SecureMapManager {
                 fillOpacity: 1,
                 strokeColor: '#ffffff',
                 strokeWeight: 1,
-                labelOrigin: new google.maps.Point(-1, -3)
+                labelOrigin: new google.maps.Point(-1, -2)
             },
             label: {
                 text: name,
