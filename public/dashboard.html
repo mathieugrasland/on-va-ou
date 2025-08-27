@@ -425,21 +425,6 @@
         // Initialiser la carte pour l'utilisateur connecté
         async function initializeMapForUser() {
             try {
-                console.log('Initialisation de la carte pour utilisateur...');
-                await secureMapManager.initializeMap();
-                await secureMapManager.loadFriendsLocations();
-                mapInitialized = true;
-                console.log('Carte initialisée avec succès');
-                
-            } catch (error) {
-                console.error('Erreur initialisation carte:', error);
-                showMessage('Erreur lors du chargement de la carte', 'error');
-            }
-        }
-
-        // Initialiser la carte pour l'utilisateur connecté
-        async function initializeMapForUser() {
-            try {
                 if (!secureMapManager) {
                     secureMapManager = new SecureMapManager('map-container', auth, db);
                 }
@@ -448,6 +433,7 @@
                 await secureMapManager.initializeMap();
                 await secureMapManager.loadFriendsLocations();
                 mapInitialized = true;
+                console.log('Carte initialisée avec succès');
                 console.log('Carte initialisée avec succès');
                 
             } catch (error) {
