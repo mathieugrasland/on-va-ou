@@ -84,8 +84,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
+          # Suppression du cache NPM car pas de package.json dans le projet
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -128,14 +127,20 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools@latest
 
-      - name: Install Python dependencies
+      - name: Setup Python Virtual Environment
         working-directory: functions
         run: |
+          python -m venv venv
+          source venv/bin/activate || venv\Scripts\activate
+          pip install --upgrade pip
           pip install -r requirements.txt
-          echo "✅ Dependencies installed"
+          echo "✅ Python environment ready"
 
       - name: Deploy Functions
+        working-directory: functions
         run: |
+          source venv/bin/activate || venv\Scripts\activate
+          cd ..
           firebase deploy --only functions --project ${{ secrets.GCP_PROJECT_ID }} --non-interactive
           echo "✅ Functions deployed successfully"
 
@@ -164,6 +169,8 @@ jobs:
 
       - name: Deploy Firestore Rules
         run: |
+          # Activer les APIs nécessaires d'abord
+          gcloud services enable firebaserules.googleapis.com --project ${{ secrets.GCP_PROJECT_ID }}
           firebase deploy --only firestore --project ${{ secrets.GCP_PROJECT_ID }} --non-interactive
           echo "✅ Firestore rules deployed successfully"
 

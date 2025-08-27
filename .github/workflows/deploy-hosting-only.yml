@@ -1,0 +1,32 @@
+name: 🚀 Deploy Hosting Only (Temporary)
+
+on:
+  push:
+    branches: [main]
+    paths: ['public/**', 'firebase.json']
+
+jobs:
+  deploy-hosting:
+    name: 🌐 Deploy Hosting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools@latest
+
+      - name: Deploy Hosting Only
+        run: |
+          firebase deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }} --non-interactive
+          echo "✅ Hosting deployed: https://${{ secrets.GCP_PROJECT_ID }}.web.app"
