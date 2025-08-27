@@ -23,13 +23,18 @@ body {
     padding: 0;
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start;
     min-height: 100vh;
     color: var(--dark-text);
     background-color: var(--light-bg);
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+}
+
+/* Pour les pages d'authentification (login, register, index) - centrage vertical */
+body.auth-page {
+    align-items: center;
 }
 
 /* Arrière-plan avec image */
