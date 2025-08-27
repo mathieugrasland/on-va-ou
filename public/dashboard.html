@@ -226,9 +226,22 @@
     <script>
         // Fonction globale accessible par Google Maps API
         function initGoogleMaps() {
-            console.log('Google Maps API chargée');
-            // Déclencher un événement personnalisé que le module pourra écouter
-            window.dispatchEvent(new CustomEvent('googleMapsLoaded'));
+            console.log('Google Maps API chargée, vérification...');
+            if (typeof google !== 'undefined' && google.maps) {
+                console.log('Google Maps disponible, déclenchement événement');
+                // Déclencher un événement personnalisé que le module pourra écouter
+                window.dispatchEvent(new CustomEvent('googleMapsLoaded'));
+            } else {
+                console.error('Google Maps API appelée mais objet google non disponible');
+                setTimeout(() => {
+                    if (typeof google !== 'undefined' && google.maps) {
+                        console.log('Google Maps disponible après délai, déclenchement événement');
+                        window.dispatchEvent(new CustomEvent('googleMapsLoaded'));
+                    } else {
+                        console.error('Google Maps toujours non disponible après délai');
+                    }
+                }, 500);
+            }
         }
         
         // Gestion d'erreur globale pour Google Maps
@@ -253,11 +266,21 @@
         function initSecureMap() {
             console.log('Initialisation du gestionnaire de carte sécurisé...');
             
+            // Vérifier que SecureMapManager est disponible
+            if (typeof SecureMapManager === 'undefined') {
+                console.error('SecureMapManager non disponible, attente...');
+                setTimeout(initSecureMap, 100); // Réessayer dans 100ms
+                return;
+            }
+            
             secureMapManager = new SecureMapManager('map-container', auth, db);
             
-            // Initialiser la carte une fois l'utilisateur connecté
+            // Initialiser la carte si l'utilisateur est déjà connecté
             if (currentUser && secureMapManager && !secureMapManager.isInitialized) {
+                console.log('Utilisateur déjà connecté, initialisation immédiate de la carte');
                 initializeMapForUser();
+            } else {
+                console.log('En attente de la connexion utilisateur pour initialiser la carte');
             }
         }
 
@@ -279,15 +302,22 @@
         // Gestion de l'authentification
         onAuthStateChanged(auth, async (user) => {
             if (user) {
+                console.log('Utilisateur authentifié:', user.email);
                 currentUser = user;
                 await loadUserProfile();
                 await loadFriendsList();
                 
                 // Si Google Maps est déjà chargé, initialiser la carte
                 if (secureMapManager && !secureMapManager.isInitialized) {
+                    console.log('Google Maps déjà chargé, initialisation de la carte...');
                     await initializeMapForUser();
+                } else if (!secureMapManager) {
+                    console.log('Google Maps pas encore chargé, en attente...');
+                } else if (secureMapManager.isInitialized) {
+                    console.log('Carte déjà initialisée');
                 }
             } else {
+                console.log('Utilisateur non authentifié, redirection...');
                 window.location.href = 'login.html';
             }
         });
