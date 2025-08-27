@@ -183,6 +183,13 @@ export class SecureMapManager {
                 fillOpacity: 1,
                 strokeColor: '#ffffff',
                 strokeWeight: 2
+            },
+            label: {
+                text: name,            // Le prénom affiché
+                color: "#000000",      // Couleur du texte
+                fontSize: "14px",      // Taille de la police
+                fontWeight: "bold",    // Gras
+                className: "marker-label" // (optionnel, permet de styliser en CSS)
             }
         });
     }
@@ -202,11 +209,19 @@ export class SecureMapManager {
                 fillOpacity: 1,
                 strokeColor: '#ffffff',
                 strokeWeight: 2
+            },
+            label: {
+                text: name,
+                color: "#000000",
+                fontSize: "12px",
+                fontWeight: "bold",
+                className: "marker-label"
             }
         });
 
         this.friendMarkers.push({ marker, friendId, name, color });
     }
+
 
     clearMarkers() {
         if (this.userMarker) {
