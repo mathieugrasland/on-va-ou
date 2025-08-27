@@ -37,6 +37,13 @@ body.auth-page {
     align-items: center;
 }
 
+/* Pour les pages de dashboard et profil - pas de centrage, pleine largeur */
+body:not(.auth-page) {
+    display: block;
+    padding: 0;
+    margin: 0;
+}
+
 /* Arrière-plan avec image */
 .background-image {
     position: fixed;
