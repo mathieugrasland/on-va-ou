@@ -26,14 +26,6 @@
     ],
     "rewrites": [
       {
-        "source": "/api/profile",
-        "function": "get_user_profile"
-      },
-      {
-        "source": "/api/profile/update", 
-        "function": "update_user_profile"
-      },
-      {
         "source": "/api/geocode",
         "function": "geocode_address"
       }
