@@ -64,19 +64,24 @@
                     // Vérifier et réparer la structure du profil
                     const needsRepair = await checkAndRepairProfile();
                     
-                    // Vérifier si c'est un nouveau utilisateur ou un profil incomplet
-                    // Après réparation, re-vérifier les champs pour déterminer si c'est vraiment un nouveau utilisateur
-                    const missingRequiredFields = !userProfile.firstName?.trim() || !userProfile.lastName?.trim() || 
-                                                !userProfile.email?.trim() || !userProfile.address?.trim() || 
-                                                !userProfile.transportMode?.trim() || !userProfile.preferences?.trim();
+                    // Distinguer entre "vraiment nouveau" (pas de firstName/lastName) et "profil incomplet"
+                    const hasBasicInfo = userProfile.firstName?.trim() && userProfile.lastName?.trim();
+                    const hasCompleteProfile = hasBasicInfo && 
+                                             userProfile.address?.trim() && 
+                                             userProfile.transportMode?.trim() && 
+                                             userProfile.preferences?.trim();
                     
-                    isNewUser = missingRequiredFields;
+                    // Si l'utilisateur a au moins un nom/prénom, ne pas le traiter comme "nouveau"
+                    isNewUser = !hasBasicInfo;
                     
                     console.log('Profile check:', {
                         needsRepair,
-                        missingRequiredFields,
+                        hasBasicInfo,
+                        hasCompleteProfile,
                         isNewUser,
-                        profileCompleted: userProfile.profileCompleted
+                        profileCompleted: userProfile.profileCompleted,
+                        firstName: userProfile.firstName,
+                        lastName: userProfile.lastName
                     });
                     
                     updateUI();
@@ -221,13 +226,20 @@
             if (isNewUser) {
                 pageTitle.textContent = 'Finalisons votre profil';
                 subtitle.textContent = 'Quelques informations pour personnaliser votre expérience';
-                // Cacher le bouton Dashboard pour les nouveaux utilisateurs
+                // Cacher le bouton Dashboard pour les vrais nouveaux utilisateurs
                 navDashboard.style.display = 'none';
             } else {
-                pageTitle.textContent = 'Mon profil';
-                subtitle.textContent = 'Modifiez vos informations personnelles';
-                // Afficher le bouton Dashboard pour les utilisateurs existants
-                navDashboard.style.display = userProfile.profileCompleted ? 'inline-block' : 'none';
+                // Utilisateur avec informations de base mais peut-être profil incomplet
+                const isComplete = isProfileComplete();
+                if (isComplete) {
+                    pageTitle.textContent = 'Mon profil';
+                    subtitle.textContent = 'Modifiez vos informations personnelles';
+                } else {
+                    pageTitle.textContent = `Bonjour ${userProfile.firstName}`;
+                    subtitle.textContent = 'Complétez votre profil pour accéder au dashboard';
+                }
+                // Afficher le bouton Dashboard seulement si profil complet
+                navDashboard.style.display = isComplete ? 'inline-block' : 'none';
             }
 
             // Remplir les champs
@@ -237,14 +249,6 @@
             document.getElementById('profile-address').value = userProfile.address || '';
             document.getElementById('profile-transport').value = userProfile.transportMode || '';
             document.getElementById('profile-preferences').value = userProfile.preferences || '';
-
-            // Bouton de navigation
-            const navButton = document.getElementById('nav-dashboard');
-            if (isProfileComplete()) {
-                navButton.style.display = 'inline-block';
-            } else {
-                navButton.style.display = 'none';
-            }
         }
 
         // Vérifier si le profil est complet
