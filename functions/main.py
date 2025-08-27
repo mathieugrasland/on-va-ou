@@ -3,16 +3,17 @@ import firebase_admin
 from firebase_admin import credentials, auth, firestore
 from flask import jsonify
 import os
+import sys
 import requests
 from loguru import logger
 
-# Configuration des logs
+# Configuration des logs pour Google Cloud Functions
+# Supprimer le gestionnaire par défaut et ajouter stdout
+logger.remove()
 logger.add(
-    "debug.log",
-    format="{time} {level} {message}",
-    level="DEBUG",
-    rotation="1 day",
-    retention="7 days"
+    sys.stdout,
+    format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+    level="DEBUG"
 )
 
 # 🚀 Cloud Functions pour "On va où ?" - Version 1.0.0
