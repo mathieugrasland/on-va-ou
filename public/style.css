@@ -440,13 +440,22 @@ a:hover {
     align-items: center;
 }
 
+/* Uniformiser la taille des boutons dans l'en-tête */
+.header-actions .button,
+.header-actions .button-secondary,
+.header-actions .button-logout {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    min-width: 100px;
+    text-align: center;
+}
+
 .button-logout {
     background: #dc3545;
     color: white;
     border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 14px;
     cursor: pointer;
     transition: all var(--transition-speed);
 }
