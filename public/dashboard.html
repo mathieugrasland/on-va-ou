@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - On va où ?</title>
+    <meta name="description" content="Tableau de bord - On va où ? Visualisez la position de vos amis">
+    <meta name="theme-color" content="#5d4037">
+    <title>Tableau de bord - On va où ?</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
@@ -11,7 +13,6 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="manifest" href="/manifest.json">
-    <link rel="manifest" href="/site.webmanifest">
     
     <link rel="stylesheet" href="style.css">
     <style>
@@ -357,12 +358,10 @@
         </div>
     </div>
 
-    <!-- Google Maps avec clé publique restreinte -->
-    <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBs1O6cYYxNLE2vB9gEcmhEhONrditDyCo&callback=initGoogleMaps&loading=async">
-    </script>
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
-    <script>
         // Définir la fonction dans l'objet window pour la rendre globale
         window.initGoogleMaps = function() {
             console.log('Google Maps API chargée, vérification...');
@@ -387,13 +386,19 @@
             console.error('Erreur authentification Google Maps');
             showMessage('Erreur de chargement de la carte (clé API)', 'error');
         };
-    </script>
 
-    <script type="module">
-        import { auth, db } from './firebase-config.js';
-        import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-        import { SecureMapManager } from './js/secure-maps.js';
+        // Rendre la fonction logout globale
+        window.logout = async function() {
+            try {
+                await signOut(auth);
+                window.location.href = 'login.html';
+            } catch (error) {
+                console.error('Erreur déconnexion:', error);
+                showMessage('Erreur lors de la déconnexion', 'error');
+            }
+        };
         import { doc, getDoc, setDoc, collection, query, where, getDocs, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+        import { SecureMapManager } from './js/secure-maps.js';
         let secureMapManager = null;
         let currentUser = null;
         let googleMapsLoaded = false;
@@ -433,7 +438,6 @@
                 await secureMapManager.loadFriendsLocations();
                 mapInitialized = true;
                 console.log('Carte initialisée avec succès');
-                console.log('Carte initialisée avec succès');
                 
             } catch (error) {
                 console.error('Erreur initialisation carte:', error);
@@ -448,6 +452,8 @@
                 currentUser = user;
                 userAuthenticated = true;
                 
+                // Charger les amis immédiatement
+                await loadFriendsList();
                 await loadFriendsList();
                 
                 // Essayer d'initialiser la carte maintenant que l'utilisateur est authentifié
@@ -546,12 +552,33 @@
             }
         };
 
-        // Événements
-        document.getElementById('logout-btn')?.addEventListener('click', logout);
+        // Fonction pour afficher un message
+        window.showMessage = function(text, type = 'info') {
+            const container = document.getElementById('message-container');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `${type}-message`;
+            messageDiv.textContent = text;
+            
+            container.innerHTML = '';
+            container.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, 5000);
+        };
 
+        // Événements
+        document.getElementById('logout-btn')?.addEventListener('click', () => window.logout());
         document.getElementById('profile-btn')?.addEventListener('click', () => {
             window.location.href = 'profile.html';
         });
+    </script>
+
+    <!-- Google Maps avec clé publique restreinte -->
+    <script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBs1O6cYYxNLE2vB9gEcmhEhONrditDyCo&callback=initGoogleMaps&loading=async">
     </script>
 </body>
 </html>
