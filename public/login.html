@@ -10,6 +10,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
+        import { getFirestore, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
         
         const firebaseConfig = {
             apiKey: "AIzaSyBs1O6cYYxNLE2vB9gEcmhEhONrditDyCo",
@@ -23,33 +24,82 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+        const db = getFirestore(app);
 
-        // Vérifier si l'utilisateur est déjà connecté
+        // Redirection si déjà connecté
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 window.location.href = 'dashboard.html';
             }
         });
 
+        // Gestion de la connexion
         document.addEventListener('DOMContentLoaded', () => {
-            const loginForm = document.getElementById('login-form');
-
-            if (loginForm) {
-                loginForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    const email = e.target.email.value;
-                    const password = e.target.password.value;
-
-                    try {
-                        await signInWithEmailAndPassword(auth, email, password);
-                        console.log('Connexion réussie !');
-                        window.location.href = 'dashboard.html';
-                    } catch (error) {
-                        console.error('Erreur connexion:', error);
-                        alert('Erreur: ' + error.message);
+            const form = document.getElementById('login-form');
+            const submitBtn = form.querySelector('button[type="submit"]');
+            
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                // Désactiver le bouton pendant le traitement
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Connexion en cours...';
+                
+                try {
+                    const formData = new FormData(form);
+                    const email = formData.get('email')?.trim();
+                    const password = formData.get('password');
+                    
+                    // Validation
+                    if (!email || !password) {
+                        throw new Error('Email et mot de passe requis');
                     }
-                });
-            }
+                    
+                    // Connexion avec Firebase Auth
+                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                    const user = userCredential.user;
+                    
+                    // Mettre à jour la dernière connexion
+                    try {
+                        await updateDoc(doc(db, 'users', user.uid), {
+                            lastLoginAt: new Date().toISOString()
+                        });
+                    } catch (updateError) {
+                        console.warn('Impossible de mettre à jour la dernière connexion:', updateError);
+                        // Ne pas bloquer la connexion pour cette erreur
+                    }
+                    
+                    // Succès
+                    window.location.href = 'dashboard.html';
+                    
+                } catch (error) {
+                    console.error('Erreur connexion:', error);
+                    
+                    let errorMessage = '';
+                    switch (error.code) {
+                        case 'auth/user-not-found':
+                            errorMessage = 'Aucun compte trouvé avec cette adresse email';
+                            break;
+                        case 'auth/wrong-password':
+                            errorMessage = 'Mot de passe incorrect';
+                            break;
+                        case 'auth/invalid-email':
+                            errorMessage = 'Adresse email invalide';
+                            break;
+                        case 'auth/too-many-requests':
+                            errorMessage = 'Trop de tentatives. Réessayez plus tard';
+                            break;
+                        default:
+                            errorMessage = error.message;
+                    }
+                    
+                    alert('Erreur: ' + errorMessage);
+                } finally {
+                    // Réactiver le bouton
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Se connecter';
+                }
+            });
         });
     </script>
 </head>
@@ -62,7 +112,7 @@
             <input type="password" name="password" placeholder="Mot de passe" required>
             <button type="submit">Se connecter</button>
         </form>
-        <p><a href="register.html">Sinon inscris toi, t'inquiète c'est secure 🫢</a></p>
+        <p><a href="register.html">Pas encore de compte ? Inscrivez-vous ici</a></p>
     </div>
 </body>
 </html>

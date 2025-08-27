@@ -29,74 +29,12 @@
         // Redirection si déjà connecté
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                console.log('Utilisateur déjà connecté, redirection...');
                 window.location.href = 'dashboard.html';
             }
         });
 
-        // Fonction d'inscription simplifiée
-        async function registerUser(email, password, firstName, lastName) {
-            try {
-                console.log('🚀 Début inscription pour:', email);
-                
-                // Étape 1: Créer le compte Firebase Auth
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                const user = userCredential.user;
-                console.log('✅ Compte Auth créé:', user.uid);
-                
-                // Étape 2: Créer le profil utilisateur dans Firestore
-                const userProfile = {
-                    firstName: firstName.trim(),
-                    lastName: lastName.trim(),
-                    email: email.trim(),
-                    createdAt: new Date().toISOString(),
-                    lastLoginAt: new Date().toISOString(),
-                    preferences: {},
-                    friends: []
-                };
-                
-                console.log('💾 Sauvegarde profil Firestore...');
-                await setDoc(doc(db, 'users', user.uid), userProfile);
-                console.log('✅ Profil sauvegardé avec succès');
-                
-                // Étape 3: Confirmer et rediriger
-                console.log('🎉 Inscription terminée avec succès !');
-                alert('Inscription réussie ! Bienvenue ' + firstName + ' !');
-                window.location.href = 'dashboard.html';
-                
-            } catch (error) {
-                console.error('❌ Erreur inscription:', error);
-                
-                let errorMessage = '';
-                switch (error.code) {
-                    case 'auth/email-already-in-use':
-                        errorMessage = 'Cette adresse email est déjà utilisée.';
-                        break;
-                    case 'auth/weak-password':
-                        errorMessage = 'Le mot de passe doit contenir au moins 6 caractères.';
-                        break;
-                    case 'auth/invalid-email':
-                        errorMessage = 'Adresse email invalide.';
-                        break;
-                    case 'auth/operation-not-allowed':
-                        errorMessage = 'Inscription par email désactivée.';
-                        break;
-                    case 'permission-denied':
-                        errorMessage = 'Erreur de permissions. Contactez l\'administrateur.';
-                        break;
-                    default:
-                        errorMessage = 'Erreur inattendue: ' + error.message;
-                }
-                
-                alert('Erreur d\'inscription: ' + errorMessage);
-                throw error;
-            }
-        }
-
-        // Event listener pour le formulaire
+        // Gestion de l'inscription
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('📄 Page register.html chargée');
-            
             const form = document.getElementById('register-form');
             const submitBtn = form.querySelector('button[type="submit"]');
             
@@ -109,12 +47,12 @@
                 
                 try {
                     const formData = new FormData(form);
-                    const firstName = formData.get('firstName');
-                    const lastName = formData.get('lastName');
-                    const email = formData.get('email');
+                    const firstName = formData.get('firstName')?.trim();
+                    const lastName = formData.get('lastName')?.trim();
+                    const email = formData.get('email')?.trim();
                     const password = formData.get('password');
                     
-                    // Validation basique
+                    // Validation
                     if (!firstName || !lastName || !email || !password) {
                         throw new Error('Tous les champs sont requis');
                     }
@@ -123,11 +61,45 @@
                         throw new Error('Le mot de passe doit contenir au moins 6 caractères');
                     }
                     
-                    // Lancer l'inscription
-                    await registerUser(email, password, firstName, lastName);
+                    // Créer le compte Firebase Auth
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    const user = userCredential.user;
+                    
+                    // Créer le profil utilisateur dans Firestore
+                    const userProfile = {
+                        firstName: firstName,
+                        lastName: lastName,
+                        email: email,
+                        createdAt: new Date().toISOString(),
+                        friends: [],
+                        preferences: {}
+                    };
+                    
+                    await setDoc(doc(db, 'users', user.uid), userProfile);
+                    
+                    // Succès
+                    alert('Inscription réussie ! Bienvenue ' + firstName + ' !');
+                    window.location.href = 'dashboard.html';
                     
                 } catch (error) {
-                    console.error('Erreur dans le formulaire:', error);
+                    console.error('Erreur inscription:', error);
+                    
+                    let errorMessage = '';
+                    switch (error.code) {
+                        case 'auth/email-already-in-use':
+                            errorMessage = 'Cette adresse email est déjà utilisée';
+                            break;
+                        case 'auth/weak-password':
+                            errorMessage = 'Le mot de passe doit contenir au moins 6 caractères';
+                            break;
+                        case 'auth/invalid-email':
+                            errorMessage = 'Adresse email invalide';
+                            break;
+                        default:
+                            errorMessage = error.message;
+                    }
+                    
+                    alert('Erreur: ' + errorMessage);
                 } finally {
                     // Réactiver le bouton
                     submitBtn.disabled = false;
@@ -145,10 +117,10 @@
             <input type="text" name="firstName" placeholder="Prénom" required>
             <input type="text" name="lastName" placeholder="Nom" required>
             <input type="email" name="email" placeholder="Adresse e-mail" required>
-            <input type="password" name="password" placeholder="Mot de passe" required>
+            <input type="password" name="password" placeholder="Mot de passe (min. 6 caractères)" required>
             <button type="submit">S'inscrire</button>
         </form>
-        <p><a href="login.html">Ici la connexion, pourquoi tu t'inscris si tu as déjà un compte 🧐</a></p>
+        <p><a href="login.html">Déjà un compte ? Connectez-vous ici</a></p>
     </div>
 </body>
 </html>
