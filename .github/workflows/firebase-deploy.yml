@@ -7,7 +7,7 @@ on:
 
 env:
   NODE_VERSION: '20'
-  PYTHON_VERSION: '3.9'
+  PYTHON_VERSION: '3.11'
 
 jobs:
   # Analyse des changements pour optimiser les déploiements
@@ -138,7 +138,7 @@ jobs:
         run: |
           # Déployer la fonction de géocodage sécurisée
           gcloud functions deploy geocode_address \
-            --runtime python39 \
+            --runtime python311 \
             --trigger-http \
             --allow-unauthenticated \
             --source . \
@@ -148,7 +148,7 @@ jobs:
           
           # Déployer les autres fonctions
           gcloud functions deploy get_user_profile \
-            --runtime python39 \
+            --runtime python311 \
             --trigger-http \
             --allow-unauthenticated \
             --source . \
@@ -156,7 +156,7 @@ jobs:
             --project on-va-ou-470217
 
           gcloud functions deploy update_user_profile \
-            --runtime python39 \
+            --runtime python311 \
             --trigger-http \
             --allow-unauthenticated \
             --source . \
@@ -164,11 +164,12 @@ jobs:
             --project on-va-ou-470217
 
           gcloud functions deploy send_friend_request \
-            --runtime python39 \
+            --runtime python311 \
             --trigger-http \
             --allow-unauthenticated \
             --source . \
             --entry-point send_friend_request \
+            --runtime python311 \
             --project on-va-ou-470217
           
           echo "✅ All Cloud Functions deployed successfully"

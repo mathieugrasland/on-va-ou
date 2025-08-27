@@ -13,7 +13,7 @@
         "*.pyc",
         ".pytest_cache"
       ],
-      "runtime": "python39"
+      "runtime": "python311"
     }
   ],
   "hosting": {
