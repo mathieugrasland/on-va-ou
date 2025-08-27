@@ -1,0 +1,214 @@
+/**
+ * @fileoverview Variables CSS pour le design system
+ * @author On va où ? Team
+ * @version 1.0.0
+ */
+
+:root {
+    /* === COULEURS PRINCIPALES === */
+    --color-primary: #2196F3;
+    --color-primary-dark: #1976D2;
+    --color-primary-light: #BBDEFB;
+    
+    --color-secondary: #FF9800;
+    --color-secondary-dark: #F57C00;
+    --color-secondary-light: #FFE0B2;
+    
+    --color-accent: #4CAF50;
+    --color-accent-dark: #388E3C;
+    --color-accent-light: #C8E6C9;
+    
+    /* === COULEURS DE STATUT === */
+    --color-success: #4CAF50;
+    --color-success-bg: #E8F5E8;
+    --color-warning: #FF9800;
+    --color-warning-bg: #FFF3E0;
+    --color-error: #F44336;
+    --color-error-bg: #FFEBEE;
+    --color-info: #2196F3;
+    --color-info-bg: #E3F2FD;
+    
+    /* === COULEURS NEUTRES === */
+    --color-white: #FFFFFF;
+    --color-black: #000000;
+    --color-gray-50: #FAFAFA;
+    --color-gray-100: #F5F5F5;
+    --color-gray-200: #EEEEEE;
+    --color-gray-300: #E0E0E0;
+    --color-gray-400: #BDBDBD;
+    --color-gray-500: #9E9E9E;
+    --color-gray-600: #757575;
+    --color-gray-700: #616161;
+    --color-gray-800: #424242;
+    --color-gray-900: #212121;
+    
+    /* === TYPOGRAPHIE === */
+    --font-family-primary: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --font-family-secondary: 'Roboto', 'Arial', sans-serif;
+    --font-family-mono: 'Fira Code', 'Consolas', 'Monaco', monospace;
+    
+    /* Tailles de police */
+    --font-size-xs: 0.75rem;    /* 12px */
+    --font-size-sm: 0.875rem;   /* 14px */
+    --font-size-base: 1rem;     /* 16px */
+    --font-size-lg: 1.125rem;   /* 18px */
+    --font-size-xl: 1.25rem;    /* 20px */
+    --font-size-2xl: 1.5rem;    /* 24px */
+    --font-size-3xl: 1.875rem;  /* 30px */
+    --font-size-4xl: 2.25rem;   /* 36px */
+    --font-size-5xl: 3rem;      /* 48px */
+    
+    /* Poids de police */
+    --font-weight-light: 300;
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-extrabold: 800;
+    
+    /* Hauteurs de ligne */
+    --line-height-tight: 1.25;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.75;
+    
+    /* === ESPACEMENT === */
+    --spacing-xs: 0.25rem;      /* 4px */
+    --spacing-sm: 0.5rem;       /* 8px */
+    --spacing-md: 1rem;         /* 16px */
+    --spacing-lg: 1.5rem;       /* 24px */
+    --spacing-xl: 2rem;         /* 32px */
+    --spacing-2xl: 2.5rem;      /* 40px */
+    --spacing-3xl: 3rem;        /* 48px */
+    --spacing-4xl: 4rem;        /* 64px */
+    --spacing-5xl: 5rem;        /* 80px */
+    
+    /* === BORDERS === */
+    --border-width-thin: 1px;
+    --border-width-medium: 2px;
+    --border-width-thick: 4px;
+    
+    --border-radius-none: 0;
+    --border-radius-sm: 0.25rem;    /* 4px */
+    --border-radius-md: 0.5rem;     /* 8px */
+    --border-radius-lg: 0.75rem;    /* 12px */
+    --border-radius-xl: 1rem;       /* 16px */
+    --border-radius-2xl: 1.5rem;    /* 24px */
+    --border-radius-full: 9999px;
+    
+    /* === OMBRES === */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    
+    /* === TRANSITIONS === */
+    --transition-fast: 0.15s ease-in-out;
+    --transition-normal: 0.3s ease-in-out;
+    --transition-slow: 0.5s ease-in-out;
+    
+    /* === BREAKPOINTS === */
+    --breakpoint-sm: 640px;
+    --breakpoint-md: 768px;
+    --breakpoint-lg: 1024px;
+    --breakpoint-xl: 1280px;
+    --breakpoint-2xl: 1536px;
+    
+    /* === Z-INDEX === */
+    --z-index-dropdown: 10;
+    --z-index-sticky: 20;
+    --z-index-fixed: 30;
+    --z-index-modal-backdrop: 40;
+    --z-index-modal: 50;
+    --z-index-popover: 60;
+    --z-index-tooltip: 70;
+    --z-index-toast: 80;
+    
+    /* === CONTENEURS === */
+    --container-max-width: 1200px;
+    --container-padding: var(--spacing-md);
+    
+    /* === FORMULAIRES === */
+    --input-height: 2.5rem;         /* 40px */
+    --input-height-sm: 2rem;        /* 32px */
+    --input-height-lg: 3rem;        /* 48px */
+    --input-padding-x: var(--spacing-md);
+    --input-padding-y: var(--spacing-sm);
+    
+    /* === BOUTONS === */
+    --button-height: 2.5rem;        /* 40px */
+    --button-height-sm: 2rem;       /* 32px */
+    --button-height-lg: 3rem;       /* 48px */
+    --button-padding-x: var(--spacing-lg);
+    --button-padding-y: var(--spacing-sm);
+    
+    /* === ANIMATIONS === */
+    --animation-bounce: bounce 1s infinite;
+    --animation-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    --animation-spin: spin 1s linear infinite;
+    --animation-fade-in: fadeIn var(--transition-normal) ease-in-out;
+    --animation-slide-in: slideIn var(--transition-normal) ease-out;
+}
+
+/* === ANIMATIONS KEYFRAMES === */
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(-25%);
+        animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+    }
+    50% {
+        transform: none;
+        animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+}
+
+@keyframes pulse {
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+/* === MEDIA QUERIES UTILITAIRES === */
+@media (prefers-color-scheme: dark) {
+    :root {
+        /* Mode sombre (optionnel pour plus tard) */
+        --color-background: var(--color-gray-900);
+        --color-surface: var(--color-gray-800);
+        --color-text: var(--color-gray-100);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --transition-fast: 0ms;
+        --transition-normal: 0ms;
+        --transition-slow: 0ms;
+        --animation-bounce: none;
+        --animation-pulse: none;
+        --animation-spin: none;
+    }
+}
