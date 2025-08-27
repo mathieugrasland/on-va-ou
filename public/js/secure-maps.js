@@ -107,10 +107,13 @@ class SecureMapManager {
             this.map = new google.maps.Map(document.getElementById(this.mapElementId), {
                 zoom: 12,
                 center: defaultPosition,
-                mapTypeControl: true,
-                streetViewControl: true,
-                fullscreenControl: true,
-                zoomControl: true
+                mapTypeId: 'roadmap',        // Forcer le type "carte" uniquement
+                mapTypeControl: false,       // Supprimer sélecteur map/satellite
+                streetViewControl: false,    // Supprimer Street View
+                fullscreenControl: true,     // Garder le plein écran
+                zoomControl: false,          // Supprimer boutons +/-
+                scrollwheel: true,           // Garder le zoom à la molette
+                gestureHandling: 'auto'      // Gestes tactiles normaux
             });
 
             this.isInitialized = true;

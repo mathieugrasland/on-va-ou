@@ -11,12 +11,13 @@
             width: 100%;
             min-height: calc(100vh - 120px);
             padding: 20px 0;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: transparent;
         }
 
         /* Amélioration de la navbar */
         .navbar {
-            background: white;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px) saturate(1.2);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             padding: 15px 20px;
             position: sticky;
@@ -119,11 +120,13 @@
 
         /* Footer utilisateur en bas de page */
         .user-footer {
-            background: #f8f9fa;
-            border-top: 1px solid #dee2e6;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px) saturate(1.2);
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
             padding: 20px;
             margin-top: 40px;
             text-align: center;
+            border-radius: 20px 20px 0 0;
         }
 
         .user-info {
@@ -198,15 +201,18 @@
 
         /* Styles améliorés pour les sections */
         .map-section, .friends-section {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            transition: box-shadow 0.3s ease;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px) saturate(1.2);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .map-section:hover, .friends-section:hover {
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
         }
 
         .map-section h2, .friends-section h3 {
@@ -305,6 +311,7 @@
     </style>
 </head>
 <body>
+    <div class="background-image"></div>
     <div class="container">
         <nav class="navbar">
             <div class="nav-brand">
