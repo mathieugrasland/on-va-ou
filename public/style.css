@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?fami@keyframes fadeInBackground {
+    from { opacity: 0; transform: scale(1.05); }
+    to { opacity: 0.6; transform: scale(1); } /* Opacité augmentée pour plus de visibilité */
+}oppins:wght@300;400;500;600;700&display=swap');
 
 :root {
     --primary-color: #5d4037; /* Marron foncé */
@@ -44,14 +47,14 @@ body {
     background-image: url('images/bar-amis-fond.jpeg');
     background-size: cover;
     background-position: center;
-    filter: blur(6px) brightness(0.6) opacity(0.4); /* Plus visible mais toujours subtil */
+    filter: blur(4px) brightness(0.8) opacity(0.6); /* Image plus visible et lumineuse */
     z-index: -1;
     animation: fadeInBackground 2s forwards;
 }
 
 @keyframes fadeInBackground {
     from { opacity: 0; transform: scale(1.05); }
-    to { opacity: 0.4; transform: scale(1); } /* Opacité augmentée */
+    to { opacity: 0.6; transform: scale(1); } /* Opacité augmentée pour plus de visibilité */
 }
 
 .container {
@@ -263,7 +266,7 @@ p a:hover {
     }
     
     .background-image {
-        filter: blur(3px) brightness(0.8);
+        filter: blur(2px) brightness(0.9) opacity(0.7); /* Image plus visible sur mobile */
     }
 }
 
