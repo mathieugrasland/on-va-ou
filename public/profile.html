@@ -220,6 +220,11 @@
             pointer-events: none;
         }
 
+        /* Classe hidden globale */
+        .hidden {
+            display: none !important;
+        }
+
         /* Boutons responsifs */
         .button, .button-secondary, .button-logout {
             padding: 12px 24px;
@@ -299,18 +304,22 @@
 
         // Vérifier l'authentification
         onAuthStateChanged(auth, async (user) => {
+            console.log('onAuthStateChanged triggered:', user ? user.email : 'no user');
             if (user) {
                 currentUser = user;
                 await loadUserProfile();
             } else {
+                console.log('No user found, redirecting to login');
                 window.location.href = 'login.html';
             }
         });
 
         // Charger le profil utilisateur
         async function loadUserProfile() {
+            console.log('Loading user profile for:', currentUser.uid);
             try {
                 const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                console.log('User document exists:', userDoc.exists());
                 if (userDoc.exists()) {
                     userProfile = userDoc.data();
                     
@@ -471,37 +480,20 @@
 
         // Mettre à jour l'interface
         function updateUI() {
-            // Titre dynamique
-            const pageTitle = document.getElementById('page-title');
-            const subtitle = document.getElementById('page-subtitle');
-            const navDashboard = document.getElementById('nav-dashboard');
-            
-            if (isNewUser) {
-                pageTitle.textContent = 'Finalisons votre profil';
-                subtitle.textContent = 'Quelques informations pour personnaliser votre expérience';
-                // Cacher le bouton Dashboard pour les vrais nouveaux utilisateurs
-                navDashboard.style.display = 'none';
-            } else {
-                // Utilisateur avec informations de base mais peut-être profil incomplet
-                const isComplete = isProfileComplete();
-                if (isComplete) {
-                    pageTitle.textContent = 'Mon profil';
-                    subtitle.textContent = 'Modifiez vos informations personnelles';
-                } else {
-                    pageTitle.textContent = `Bonjour ${userProfile.firstName}`;
-                    subtitle.textContent = 'Complétez votre profil pour accéder au dashboard';
-                }
-                // Afficher le bouton Dashboard seulement si profil complet
-                navDashboard.style.display = isComplete ? 'inline-block' : 'none';
-            }
+            // Remplir les champs du formulaire
+            const firstNameInput = document.getElementById('profile-firstName');
+            const lastNameInput = document.getElementById('profile-lastName');
+            const emailInput = document.getElementById('profile-email');
+            const addressInput = document.getElementById('profile-address');
+            const transportInput = document.getElementById('profile-transport');
+            const preferencesInput = document.getElementById('profile-preferences');
 
-            // Remplir les champs
-            document.getElementById('profile-firstName').value = userProfile.firstName || '';
-            document.getElementById('profile-lastName').value = userProfile.lastName || '';
-            document.getElementById('profile-email').value = userProfile.email || '';
-            document.getElementById('profile-address').value = userProfile.address || '';
-            document.getElementById('profile-transport').value = userProfile.transportMode || '';
-            document.getElementById('profile-preferences').value = userProfile.preferences || '';
+            if (firstNameInput) firstNameInput.value = userProfile.firstName || '';
+            if (lastNameInput) lastNameInput.value = userProfile.lastName || '';
+            if (emailInput) emailInput.value = userProfile.email || '';
+            if (addressInput) addressInput.value = userProfile.address || '';
+            if (transportInput) transportInput.value = userProfile.transportMode || '';
+            if (preferencesInput) preferencesInput.value = userProfile.preferences || '';
         }
 
         // Vérifier si le profil est complet
