@@ -3,6 +3,8 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebas
 import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
+// ATTENTION: Ces clés doivent être sécurisées en production
+// Utiliser des variables d'environnement ou Firebase Hosting
 const firebaseConfig = {
     apiKey: "AIzaSyBs1O6cYYxNLE2vB9gEcmhEhONrditDyCo",
     authDomain: "on-va-ou-470217.firebaseapp.com",

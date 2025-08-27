@@ -113,7 +113,18 @@ def update_user_profile(request):
 
         # Champs autorisés à être mis à jour
         allowed_fields = ['firstName', 'lastName', 'address', 'preferences']
-        update_data = {k: v for k, v in request_json.items() if k in allowed_fields}
+        update_data = {}
+        
+        # Validation et nettoyage des données
+        for k, v in request_json.items():
+            if k in allowed_fields:
+                if isinstance(v, str):
+                    # Nettoyer les chaînes avec strip() (équivalent de trim() en JS)
+                    cleaned_value = v.strip()
+                    if cleaned_value:  # Ne pas accepter les chaînes vides après nettoyage
+                        update_data[k] = cleaned_value
+                elif v is not None:  # Accepter les autres types non-null
+                    update_data[k] = v
         
         if not update_data:
             return jsonify({"error": "Aucun champ valide à mettre à jour"}), 400, headers

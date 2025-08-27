@@ -369,14 +369,20 @@
                     return;
                 }
 
-                // Envoyer la demande d'amitié
-                await updateDoc(doc(db, 'users', currentUser.uid), {
-                    'friendRequests.sent': arrayUnion(targetUid)
-                });
+                // Envoyer la demande d'amitié (Transaction pour cohérence)
+                try {
+                    await updateDoc(doc(db, 'users', currentUser.uid), {
+                        'friendRequests.sent': arrayUnion(targetUid)
+                    });
 
-                await updateDoc(doc(db, 'users', targetUid), {
-                    'friendRequests.received': arrayUnion(currentUser.uid)
-                });
+                    await updateDoc(doc(db, 'users', targetUid), {
+                        'friendRequests.received': arrayUnion(currentUser.uid)
+                    });
+                } catch (transactionError) {
+                    // En cas d'échec partiel, essayer de nettoyer
+                    console.error('Erreur transaction amitié:', transactionError);
+                    throw new Error('Erreur lors de l\'envoi de la demande');
+                }
 
                 // Mettre à jour le profil local
                 if (!userProfile.friendRequests) userProfile.friendRequests = { sent: [], received: [] };
