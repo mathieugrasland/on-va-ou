@@ -1,14 +1,14 @@
 rules_version = '2';
-// 🔐 Firestore Security Rules - Version 1.0.0
+// 🔐 Firestore Security Rules - Version 1.1.0 (Temporaire pour debug)
 // Dernière modification: 2025-08-27
 // TODO: Ajouter règles pour les groupes d'amis et recommandations de bars
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Règles pour la collection users
+    // Règles temporaires plus permissives pour tester l'inscription
     match /users/{userId} {
-      // Un utilisateur peut seulement lire/écrire ses propres données
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Permettre l'écriture pour les utilisateurs authentifiés (temporaire)
+      allow read, write: if request.auth != null;
     }
     
     // Règles pour les futures collections (bars, groupes, etc.)

@@ -45,27 +45,60 @@
                     const password = e.target.password.value;
 
                     try {
+                        console.log('Début inscription...');
+                        
                         // Créer l'utilisateur avec Firebase Auth
                         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                         const user = userCredential.user;
                         console.log('Utilisateur créé:', user.uid);
+                        
+                        // Attendre un peu pour que le token soit prêt
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        
+                        // Obtenir le token d'authentification frais
+                        const idToken = await user.getIdToken(true);
+                        console.log('Token obtenu:', idToken ? 'OK' : 'ERREUR');
 
                         // Sauvegarder le profil dans Firestore
-                        await setDoc(doc(db, 'users', user.uid), {
+                        const userProfile = {
                             firstName: firstName,
                             lastName: lastName,
                             email: email,
                             preferences: {},
                             address: '',
                             createdAt: new Date()
-                        });
+                        };
+                        
+                        console.log('Sauvegarde du profil...', userProfile);
+                        await setDoc(doc(db, 'users', user.uid), userProfile);
+                        console.log('Profil sauvegardé avec succès !');
 
-                        console.log('Profil sauvegardé dans Firestore');
                         alert('Inscription réussie ! Vous êtes maintenant connecté.');
                         window.location.href = 'dashboard.html';
                     } catch (error) {
-                        console.error('Erreur inscription:', error);
-                        alert('Erreur: ' + error.message);
+                        console.error('Erreur inscription complète:', error);
+                        console.error('Code erreur:', error.code);
+                        console.error('Message erreur:', error.message);
+                        
+                        // Messages d'erreur plus explicites
+                        let errorMessage = 'Erreur inconnue';
+                        switch (error.code) {
+                            case 'auth/email-already-in-use':
+                                errorMessage = 'Cette adresse email est déjà utilisée';
+                                break;
+                            case 'auth/weak-password':
+                                errorMessage = 'Le mot de passe doit contenir au moins 6 caractères';
+                                break;
+                            case 'auth/invalid-email':
+                                errorMessage = 'Adresse email invalide';
+                                break;
+                            case 'permission-denied':
+                                errorMessage = 'Erreur de permissions Firestore';
+                                break;
+                            default:
+                                errorMessage = error.message;
+                        }
+                        alert('Erreur: ' + errorMessage);
                     }
                 });
             }
