@@ -6,10 +6,18 @@
     <title>Dashboard - On va où ?</title>
     <link rel="stylesheet" href="style.css">
     <style>
+        /* Wrapper spécifique au dashboard - vraiment responsive */
+        .dashboard-wrapper {
+            width: 100%;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+
         /* Container principal optimisé */
         .dashboard-container {
             width: 100%;
-            min-height: calc(100vh - 120px);
+            min-height: calc(100vh - 80px);
             padding: 20px 0;
             background: transparent;
         }
@@ -157,9 +165,11 @@
             display: grid;
             gap: 30px;
             grid-template-columns: 1fr;
-            max-width: 1400px;
+            max-width: none;
+            width: 100%;
             margin: 0 auto;
             padding: 0 20px;
+            box-sizing: border-box;
         }
 
         /* Desktop layout - disposition horizontale */
@@ -168,6 +178,8 @@
                 grid-template-columns: 2fr 1fr;
                 gap: 40px;
                 align-items: start;
+                max-width: 1400px;
+                padding: 0 40px;
             }
             
             .map-section {
@@ -190,7 +202,8 @@
         @media (min-width: 769px) and (max-width: 1023px) {
             .main-content {
                 grid-template-columns: 1fr;
-                max-width: 800px;
+                max-width: 900px;
+                padding: 0 30px;
             }
             
             .map-container {
@@ -263,26 +276,28 @@
 
         @media (max-width: 768px) {
             .dashboard-container {
-                padding: 15px;
+                padding: 10px 0;
             }
             
             .main-content {
                 gap: 20px;
-                padding: 0 10px;
+                padding: 0 15px;
+                width: 100%;
             }
             
             .map-section, .friends-section {
                 padding: 20px;
-                margin: 0 auto;
+                margin: 0;
                 width: 100%;
                 max-width: 100%;
+                box-sizing: border-box;
             }
             
             .map-container {
                 height: 350px;
                 width: 100%;
-                margin: 0 auto;
-                border-radius: 10px;
+                margin: 0;
+                border-radius: 15px;
             }
             
             .floating-profile-btn {
@@ -306,13 +321,18 @@
             .user-footer {
                 margin-top: 20px;
                 padding: 15px;
+                border-radius: 15px 15px 0 0;
+            }
+            
+            .navbar {
+                padding: 10px 15px;
             }
         }
     </style>
 </head>
 <body>
     <div class="background-image"></div>
-    <div class="container">
+    <div class="dashboard-wrapper">
         <nav class="navbar">
             <div class="nav-brand">
                 <h1>On va où ?</h1>
