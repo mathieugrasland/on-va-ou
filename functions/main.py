@@ -10,16 +10,27 @@ import os
 
 # Initialisation optimisée de Firebase
 if not firebase_admin._apps:
-    # Utilise les variables d'environnement en production
-    if os.getenv('GOOGLE_CLOUD_PROJECT'):
-        firebase_admin.initialize_app()
+    # En CI/CD ou production avec ADC (Application Default Credentials)
+    if os.getenv('GOOGLE_CLOUD_PROJECT') or os.getenv('GITHUB_ACTIONS'):
+        try:
+            firebase_admin.initialize_app()
+        except Exception as e:
+            print(f"Warning: Could not initialize Firebase in CI/CD context: {e}")
+            # On skip l'initialisation en mode analyse/compilation
+            db = None
     else:
         # Pour le développement local
         cred = credentials.ApplicationDefault()
         firebase_admin.initialize_app(cred)
 
 # Client Firestore global (réutilisé entre les invocations)
-db = firestore.client()
+# Initialisation paresseuse pour éviter les erreurs en CI/CD
+db = None
+if firebase_admin._apps:
+    try:
+        db = firestore.client()
+    except Exception as e:
+        print(f"Warning: Could not initialize Firestore client: {e}")
 
 @functions_framework.http
 def get_user_profile(request):
