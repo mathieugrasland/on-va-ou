@@ -69,6 +69,18 @@ export class SecureMapManager {
         this.isInitialized = false;
         this.auth = auth;
         this.db = db;
+        this.friendColors = [
+            '#FF5733', // Orange
+            '#33FF57', // Vert clair
+            '#3357FF', // Bleu
+            '#FF33F5', // Rose
+            '#33FFF5', // Cyan
+            '#F5FF33', // Jaune
+            '#9933FF', // Violet
+            '#FF3333', // Rouge
+            '#33FFB5', // Turquoise
+            '#FFB533'  // Orange clair
+        ];
     }
 
     async initializeMap() {
@@ -176,6 +188,9 @@ export class SecureMapManager {
     }
 
     addFriendMarker(location, name, friendId) {
+        const colorIndex = this.friendMarkers.length % this.friendColors.length;
+        const color = this.friendColors[colorIndex];
+        
         const marker = new google.maps.Marker({
             position: location,
             map: this.map,
@@ -183,14 +198,14 @@ export class SecureMapManager {
             icon: {
                 path: google.maps.SymbolPath.CIRCLE,
                 scale: 8,
-                fillColor: '#34A853',
+                fillColor: color,
                 fillOpacity: 1,
                 strokeColor: '#ffffff',
                 strokeWeight: 2
             }
         });
 
-        this.friendMarkers.push({ marker, friendId, name });
+        this.friendMarkers.push({ marker, friendId, name, color });
     }
 
     clearMarkers() {

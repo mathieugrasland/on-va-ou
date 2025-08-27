@@ -484,13 +484,14 @@
                 }
 
                 // Charger les données de chaque ami
-                for (const friendId of friends) {
+                for (let i = 0; i < friends.length; i++) {
+                    const friendId = friends[i];
                     try {
                         const friendDoc = await getDoc(doc(db, 'users', friendId));
 
                         if (friendDoc.exists()) {
                             const friendData = friendDoc.data();
-                            const friendCard = createFriendCard(friendData);
+                            const friendCard = createFriendCard(friendData, i);
                             friendsList.appendChild(friendCard);
                         }
                     } catch (error) {
@@ -505,17 +506,17 @@
         }
 
         // Créer une carte d'ami
-        function createFriendCard(friendData) {
+        function createFriendCard(friendData, index) {
             const card = document.createElement('div');
             card.className = 'friend-card';
 
             const hasAddress = friendData.address && friendData.address.trim();
             const statusClass = hasAddress ? 'status-online' : 'status-offline';
-            const statusText = hasAddress ? 'Position connue' : 'Pas d\'adresse';
+            const color = secureMapManager.friendColors[index % secureMapManager.friendColors.length];
 
             card.innerHTML = `
-                <div class="friend-name">
-                    <span class="status-indicator ${statusClass}"></span>
+                <div class="friend-name" style="color: ${color}; font-weight: bold;">
+                    <span class="status-indicator ${statusClass}" style="background-color: ${color};"></span>
                     ${friendData.firstName || 'Ami'}
                 </div>
             `;
