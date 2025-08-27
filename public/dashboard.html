@@ -53,19 +53,11 @@
             justify-content: center;
         }
 
-        .friends-panel {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-        }
-
         .friends-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 15px;
-            margin-top: 15px;
+            margin-top: 20px;
         }
 
         .friend-card {
@@ -235,6 +227,10 @@
             font-weight: 600;
         }
 
+        .friends-section h3 {
+            font-size: 20px;
+        }
+
         /* Amélioration de la carte */
         .map-container {
             width: 100%;
@@ -356,11 +352,9 @@
 
                 <!-- Section amis -->
                 <div class="friends-section">
-                    <div class="friends-panel">
-                        <h3>👥 Mes Amis (<span id="friends-count">0</span>)</h3>
-                        <div id="friends-list" class="friends-list">
-                            <div class="loading-message">Chargement des amis...</div>
-                        </div>
+                    <h3>👥 Mes Amis (<span id="friends-count">0</span>)</h3>
+                    <div id="friends-list" class="friends-list">
+                        <div class="loading-message">Chargement des amis...</div>
                     </div>
                 </div>
             </div>
