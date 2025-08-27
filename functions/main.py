@@ -21,7 +21,11 @@ logger.add(
 # Fonctions pour gestion des utilisateurs, géocodage et recommandations de bars
 
 # Configuration sécurisée
-GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', 'AIzaSyBUNmeroMLlCNzrpCi7-6VCGBGfJ4Eg4MQ')
+GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
+if not GOOGLE_MAPS_API_KEY:
+    logger.warning("⚠️ Clé API Google Maps non trouvée dans les variables d'environnement, utilisation de la clé de secours")
+    GOOGLE_MAPS_API_KEY = 'AIzaSyBUNmeroMLlCNzrpCi7-6VCGBGfJ4Eg4MQ'
+logger.debug(f"État de la clé API: {'Définie depuis env' if os.environ.get('GOOGLE_MAPS_API_KEY') else 'Utilisation clé secours'}")
 
 # Initialisation optimisée de Firebase
 if not firebase_admin._apps:
@@ -222,15 +226,28 @@ def geocode_address(request):
         logger.debug(f"Places API URL: {places_url}")
         logger.debug(f"Places params (sans clé API): {dict(places_params, key='[MASQUÉ]')}")
         
-        places_response = requests.get(places_url, params=places_params, timeout=10)
-        logger.debug(f"Places API status code: {places_response.status_code}")
-        places_response.raise_for_status()
-        
-        places_data = places_response.json()
-        logger.debug(f"Places API response status: {places_data.get('status')}")
-        logger.debug(f"Nombre de prédictions: {len(places_data.get('predictions', []))}")
-        
-        if places_data['status'] == 'OK' and places_data['predictions']:
+        try:
+            places_response = requests.get(places_url, params=places_params, timeout=10)
+            logger.debug(f"Places API status code HTTP: {places_response.status_code}")
+            places_response.raise_for_status()
+            
+            places_data = places_response.json()
+            logger.info(f"Places API status: {places_data.get('status')}")
+            
+            if places_data['status'] == 'REQUEST_DENIED':
+                logger.error(f"Places API a refusé la requête. Message: {places_data.get('error_message', 'Pas de message d\'erreur')}")
+                logger.error("Vérifiez que : 1) La clé API est correcte, 2) Places API est activée, 3) La facturation est activée")
+                raise Exception(f"Places API REQUEST_DENIED: {places_data.get('error_message')}")
+            
+            if places_data['status'] not in ['OK', 'ZERO_RESULTS']:
+                logger.error(f"Places API status inattendu: {places_data['status']}")
+                logger.error(f"Message d'erreur Places API: {places_data.get('error_message', 'Pas de message')}")
+                raise Exception(f"Places API error: {places_data['status']}")
+            
+            logger.info(f"Nombre de prédictions reçues: {len(places_data.get('predictions', []))}")
+            logger.debug(f"Réponse complète Places API: {places_data}")
+            
+            if places_data['status'] == 'OK' and places_data['predictions']:
             # Utiliser la première suggestion
             place_id = places_data['predictions'][0]['place_id']
             
