@@ -275,29 +275,29 @@ def geocode_address(request):
         response.raise_for_status()
         geocoding_data = response.json()
         
-            if geocoding_data['status'] == 'OK' and geocoding_data['results']:
-                result = geocoding_data['results'][0]
-                location = result['geometry']['location']
-                logger.info(f"✅ Localisation trouvée: {location}")
-                logger.debug(f"Adresse formatée: {result['formatted_address']}")
-                
-                response_data = {
-                    "success": True,
-                    "location": {
-                        "lat": location['lat'],
-                        "lng": location['lng']
-                    },
-                    "formatted_address": result['formatted_address']
-                }
-                logger.debug(f"Réponse finale: {response_data}")
-                return jsonify(response_data), 200, headers
+        if geocoding_data['status'] == 'OK' and geocoding_data['results']:
+            result = geocoding_data['results'][0]
+            location = result['geometry']['location']
+            logger.info(f"✅ Localisation trouvée: {location}")
+            logger.debug(f"Adresse formatée: {result['formatted_address']}")
+            
+            response_data = {
+                "success": True,
+                "location": {
+                    "lat": location['lat'],
+                    "lng": location['lng']
+                },
+                "formatted_address": result['formatted_address']
+            }
+            logger.debug(f"Réponse finale: {response_data}")
+            return jsonify(response_data), 200, headers
         
-            logger.warning(f"❌ Géocodage échoué. Status: {geocoding_data['status']}")
-            return jsonify({
-                "success": False,
-                "error": "Adresse non trouvée",
-                "status": geocoding_data['status']
-            }), 404, headers
+        logger.warning(f"❌ Géocodage échoué. Status: {geocoding_data['status']}")
+        return jsonify({
+            "success": False,
+            "error": "Adresse non trouvée",
+            "status": geocoding_data['status']
+        }), 404, headers
 
     except auth.InvalidIdTokenError as e:
         logger.error(f"🔒 Erreur token invalide: {str(e)}")
@@ -307,7 +307,9 @@ def geocode_address(request):
         return jsonify({"error": "Erreur service de géolocalisation"}), 503, headers
     except Exception as e:
         logger.error(f"💥 Erreur inattendue: {str(e)}", exc_info=True)
-        return jsonify({"error": "Erreur interne du serveur"}), 500, headers@functions_framework.http
+        return jsonify({"error": "Erreur interne du serveur"}), 500, headers
+
+@functions_framework.http
 def send_friend_request(request):
     """Envoyer une demande d'ami"""
     if request.method == 'OPTIONS':
