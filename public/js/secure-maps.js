@@ -178,7 +178,7 @@ export class SecureMapManager {
             title: name,
             icon: {
                 path: google.maps.SymbolPath.CIRCLE,
-                scale: 10,
+                scale: 5,
                 fillColor: '#4285F4',
                 fillOpacity: 1,
                 strokeColor: '#ffffff',
@@ -188,7 +188,7 @@ export class SecureMapManager {
             label: {
                 text: name,            // Le prénom affiché
                 color: '#4285F4',      // Couleur du texte
-                fontSize: "14px",      // Taille de la police
+                fontSize: "12px",      // Taille de la police
                 fontWeight: "bold",    // Gras
                 className: "marker-label" // (optionnel, permet de styliser en CSS)
             }
@@ -205,7 +205,7 @@ export class SecureMapManager {
             title: name,
             icon: {
                 path: google.maps.SymbolPath.CIRCLE,
-                scale: 8,
+                scale: 3,
                 fillColor: color,
                 fillOpacity: 1,
                 strokeColor: '#ffffff',
