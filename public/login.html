@@ -88,11 +88,7 @@
                         }
                         
                         // Vérifier si le profil est complet
-                        const isProfileComplete = userData.address && 
-                                                userData.transportMode && 
-                                                userData.preferences;
-                        
-                        if (isProfileComplete) {
+                        if (userData.profileCompleted) {
                             window.location.href = 'dashboard.html';
                         } else {
                             window.location.href = 'profile.html';

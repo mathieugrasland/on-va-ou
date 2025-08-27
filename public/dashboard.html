@@ -36,11 +36,7 @@
                     userProfile = userDoc.data();
                     
                     // Vérifier si le profil est complet avant d'afficher le dashboard
-                    const isProfileComplete = userProfile.address && 
-                                            userProfile.transportMode && 
-                                            userProfile.preferences;
-                    
-                    if (!isProfileComplete) {
+                    if (!userProfile.profileCompleted) {
                         // Rediriger vers le profil si incomplet
                         window.location.href = 'profile.html';
                         return;
