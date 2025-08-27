@@ -90,7 +90,12 @@
                         address: '',
                         transportMode: '',
                         preferences: '',
-                        friends: []
+                        // Champs pour le système d'amitié
+                        friends: [],
+                        friendRequests: {
+                            sent: [],
+                            received: []
+                        }
                     };
                     
                     await setDoc(doc(db, 'users', user.uid), userProfile);

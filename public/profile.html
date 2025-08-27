@@ -12,7 +12,7 @@
     <script type="module">
         import { auth, db } from './firebase-config.js';
         import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
-        import { doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+        import { doc, getDoc, updateDoc, collection, query, where, getDocs, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
         // Fonction utilitaire pour afficher des messages
         function showMessage(message, type = 'success') {
@@ -117,21 +117,253 @@
                    userProfile.preferences;
         }
 
-        // Charger la liste des amis
+        // Charger la liste des amis et demandes
         async function loadFriends() {
+            try {
+                await loadFriendRequests();
+                await loadConfirmedFriends();
+            } catch (error) {
+                console.error('Erreur chargement amis:', error);
+            }
+        }
+
+        // Charger les demandes d'amitié
+        async function loadFriendRequests() {
+            try {
+                // Demandes reçues
+                const receivedContainer = document.getElementById('received-requests');
+                const sentContainer = document.getElementById('sent-requests');
+                
+                if (userProfile.friendRequests) {
+                    // Demandes reçues
+                    if (userProfile.friendRequests.received && userProfile.friendRequests.received.length > 0) {
+                        const receivedHTML = await Promise.all(
+                            userProfile.friendRequests.received.map(async (senderUid) => {
+                                const senderDoc = await getDoc(doc(db, 'users', senderUid));
+                                const senderData = senderDoc.data();
+                                return `
+                                    <div class="friend-request-item">
+                                        <span class="friend-name">${senderData.firstName} ${senderData.lastName}</span>
+                                        <span class="friend-email">(${senderData.email})</span>
+                                        <div class="request-actions">
+                                            <button onclick="acceptFriendRequest('${senderUid}')" class="button-small button-accept">Accepter</button>
+                                            <button onclick="rejectFriendRequest('${senderUid}')" class="button-small button-reject">Refuser</button>
+                                        </div>
+                                    </div>
+                                `;
+                            })
+                        );
+                        receivedContainer.innerHTML = receivedHTML.join('');
+                    } else {
+                        receivedContainer.innerHTML = '<p class="no-requests">Aucune demande reçue</p>';
+                    }
+
+                    // Demandes envoyées
+                    if (userProfile.friendRequests.sent && userProfile.friendRequests.sent.length > 0) {
+                        const sentHTML = await Promise.all(
+                            userProfile.friendRequests.sent.map(async (recipientUid) => {
+                                const recipientDoc = await getDoc(doc(db, 'users', recipientUid));
+                                const recipientData = recipientDoc.data();
+                                return `
+                                    <div class="friend-request-item">
+                                        <span class="friend-name">${recipientData.firstName} ${recipientData.lastName}</span>
+                                        <span class="friend-email">(${recipientData.email})</span>
+                                        <span class="request-status">En attente...</span>
+                                    </div>
+                                `;
+                            })
+                        );
+                        sentContainer.innerHTML = sentHTML.join('');
+                    } else {
+                        sentContainer.innerHTML = '<p class="no-requests">Aucune demande envoyée</p>';
+                    }
+                } else {
+                    receivedContainer.innerHTML = '<p class="no-requests">Aucune demande reçue</p>';
+                    sentContainer.innerHTML = '<p class="no-requests">Aucune demande envoyée</p>';
+                }
+            } catch (error) {
+                console.error('Erreur chargement demandes:', error);
+            }
+        }
+
+        // Charger les amis confirmés
+        async function loadConfirmedFriends() {
             try {
                 const friendsList = document.getElementById('friends-list');
                 
-                // Pour l'instant, afficher un message
-                friendsList.innerHTML = `
-                    <div class="friends-placeholder">
-                        <p>🚧 Fonctionnalité amis en cours de développement</p>
-                        <p>Bientôt vous pourrez ajouter des amis et trouver des bars ensemble !</p>
-                    </div>
-                `;
-                
+                if (userProfile.friends && userProfile.friends.length > 0) {
+                    const friendsHTML = await Promise.all(
+                        userProfile.friends.map(async (friendUid) => {
+                            const friendDoc = await getDoc(doc(db, 'users', friendUid));
+                            const friendData = friendDoc.data();
+                            return `
+                                <div class="friend-item">
+                                    <div class="friend-info">
+                                        <span class="friend-name">${friendData.firstName} ${friendData.lastName}</span>
+                                        <span class="friend-email">(${friendData.email})</span>
+                                    </div>
+                                    <button onclick="removeFriend('${friendUid}')" class="button-small button-remove">Supprimer</button>
+                                </div>
+                            `;
+                        })
+                    );
+                    friendsList.innerHTML = friendsHTML.join('');
+                } else {
+                    friendsList.innerHTML = '<p class="no-friends">Aucun ami pour le moment</p>';
+                }
             } catch (error) {
-                console.error('Erreur chargement amis:', error);
+                console.error('Erreur chargement amis confirmés:', error);
+            }
+        }
+
+        // Rechercher un utilisateur par email et envoyer une demande d'amitié
+        async function sendFriendRequest(email) {
+            try {
+                // Vérifier que ce n'est pas son propre email
+                if (email === currentUser.email) {
+                    showMessage('Vous ne pouvez pas vous ajouter vous-même !', 'error');
+                    return;
+                }
+
+                // Rechercher l'utilisateur par email
+                const usersRef = collection(db, 'users');
+                const q = query(usersRef, where('email', '==', email));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    showMessage('Aucun utilisateur trouvé avec cette adresse email', 'error');
+                    return;
+                }
+
+                const targetUserDoc = querySnapshot.docs[0];
+                const targetUserData = targetUserDoc.data();
+                const targetUid = targetUserDoc.id;
+
+                // Vérifier que les utilisateurs ne sont pas déjà amis
+                if (userProfile.friends && userProfile.friends.includes(targetUid)) {
+                    showMessage('Vous êtes déjà amis avec cette personne', 'error');
+                    return;
+                }
+
+                // Vérifier qu'une demande n'a pas déjà été envoyée
+                if (userProfile.friendRequests && userProfile.friendRequests.sent && userProfile.friendRequests.sent.includes(targetUid)) {
+                    showMessage('Demande déjà envoyée à cette personne', 'error');
+                    return;
+                }
+
+                // Vérifier qu'une demande n'a pas déjà été reçue de cette personne
+                if (userProfile.friendRequests && userProfile.friendRequests.received && userProfile.friendRequests.received.includes(targetUid)) {
+                    showMessage('Cette personne vous a déjà envoyé une demande ! Vérifiez vos demandes reçues.', 'error');
+                    return;
+                }
+
+                // Envoyer la demande d'amitié
+                await updateDoc(doc(db, 'users', currentUser.uid), {
+                    'friendRequests.sent': arrayUnion(targetUid)
+                });
+
+                await updateDoc(doc(db, 'users', targetUid), {
+                    'friendRequests.received': arrayUnion(currentUser.uid)
+                });
+
+                // Mettre à jour le profil local
+                if (!userProfile.friendRequests) userProfile.friendRequests = { sent: [], received: [] };
+                if (!userProfile.friendRequests.sent) userProfile.friendRequests.sent = [];
+                userProfile.friendRequests.sent.push(targetUid);
+
+                showMessage(`Demande d'amitié envoyée à ${targetUserData.firstName} ${targetUserData.lastName} !`);
+                await loadFriendRequests();
+
+            } catch (error) {
+                console.error('Erreur envoi demande:', error);
+                showMessage('Erreur lors de l\'envoi de la demande', 'error');
+            }
+        }
+
+        // Accepter une demande d'amitié
+        async function acceptFriendRequest(senderUid) {
+            try {
+                // Ajouter aux listes d'amis des deux utilisateurs
+                await updateDoc(doc(db, 'users', currentUser.uid), {
+                    friends: arrayUnion(senderUid),
+                    'friendRequests.received': arrayRemove(senderUid)
+                });
+
+                await updateDoc(doc(db, 'users', senderUid), {
+                    friends: arrayUnion(currentUser.uid),
+                    'friendRequests.sent': arrayRemove(currentUser.uid)
+                });
+
+                // Mettre à jour le profil local
+                if (!userProfile.friends) userProfile.friends = [];
+                userProfile.friends.push(senderUid);
+                if (userProfile.friendRequests && userProfile.friendRequests.received) {
+                    userProfile.friendRequests.received = userProfile.friendRequests.received.filter(uid => uid !== senderUid);
+                }
+
+                showMessage('Demande d\'amitié acceptée !');
+                await loadFriendRequests();
+                await loadConfirmedFriends();
+
+            } catch (error) {
+                console.error('Erreur acceptation demande:', error);
+                showMessage('Erreur lors de l\'acceptation', 'error');
+            }
+        }
+
+        // Refuser une demande d'amitié
+        async function rejectFriendRequest(senderUid) {
+            try {
+                // Supprimer des listes de demandes
+                await updateDoc(doc(db, 'users', currentUser.uid), {
+                    'friendRequests.received': arrayRemove(senderUid)
+                });
+
+                await updateDoc(doc(db, 'users', senderUid), {
+                    'friendRequests.sent': arrayRemove(currentUser.uid)
+                });
+
+                // Mettre à jour le profil local
+                if (userProfile.friendRequests && userProfile.friendRequests.received) {
+                    userProfile.friendRequests.received = userProfile.friendRequests.received.filter(uid => uid !== senderUid);
+                }
+
+                showMessage('Demande d\'amitié refusée');
+                await loadFriendRequests();
+
+            } catch (error) {
+                console.error('Erreur refus demande:', error);
+                showMessage('Erreur lors du refus', 'error');
+            }
+        }
+
+        // Supprimer un ami
+        async function removeFriend(friendUid) {
+            try {
+                if (!confirm('Êtes-vous sûr de vouloir supprimer cet ami ?')) {
+                    return;
+                }
+
+                // Supprimer des listes d'amis des deux utilisateurs
+                await updateDoc(doc(db, 'users', currentUser.uid), {
+                    friends: arrayRemove(friendUid)
+                });
+
+                await updateDoc(doc(db, 'users', friendUid), {
+                    friends: arrayRemove(currentUser.uid)
+                });
+
+                // Mettre à jour le profil local
+                if (userProfile.friends) {
+                    userProfile.friends = userProfile.friends.filter(uid => uid !== friendUid);
+                }
+
+                showMessage('Ami supprimé');
+                await loadConfirmedFriends();
+
+            } catch (error) {
+                console.error('Erreur suppression ami:', error);
+                showMessage('Erreur lors de la suppression', 'error');
             }
         }
 
@@ -226,7 +458,27 @@
                     }
                 });
             }
+
+            // Formulaire d'ajout d'ami
+            const addFriendForm = document.getElementById('add-friend-form');
+            if (addFriendForm) {
+                addFriendForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const emailInput = document.getElementById('friend-email');
+                    const email = emailInput.value.trim();
+                    
+                    if (email) {
+                        await sendFriendRequest(email);
+                        emailInput.value = ''; // Vider le champ après envoi
+                    }
+                });
+            }
         });
+
+        // Exposer les fonctions globalement pour les événements onclick
+        window.acceptFriendRequest = acceptFriendRequest;
+        window.rejectFriendRequest = rejectFriendRequest;
+        window.removeFriend = removeFriend;
     </script>
 </head>
 <body>
@@ -303,10 +555,42 @@
             </form>
 
             <!-- Section amis -->
-            <section class="dashboard-section">
+            <section class="dashboard-section friends-section">
                 <h3>👥 Mes amis</h3>
-                <div id="friends-list">
-                    <!-- Les amis seront chargés ici -->
+                
+                <!-- Ajouter un ami -->
+                <div class="add-friend-form">
+                    <h4>➕ Ajouter un ami</h4>
+                    <form id="add-friend-form" class="inline-form">
+                        <div class="form-group-inline">
+                            <input type="email" id="friend-email" placeholder="Adresse email de votre ami" required>
+                            <button type="submit" class="button button-secondary">Envoyer une demande</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Demandes reçues -->
+                <div class="friend-requests-received">
+                    <h4>📥 Demandes reçues</h4>
+                    <div id="received-requests">
+                        <!-- Les demandes reçues seront chargées ici -->
+                    </div>
+                </div>
+
+                <!-- Demandes envoyées -->
+                <div class="friend-requests-sent">
+                    <h4>📤 Demandes envoyées</h4>
+                    <div id="sent-requests">
+                        <!-- Les demandes envoyées seront chargées ici -->
+                    </div>
+                </div>
+
+                <!-- Liste des amis -->
+                <div class="friends-list-container">
+                    <h4>✅ Mes amis</h4>
+                    <div id="friends-list">
+                        <!-- Les amis seront chargés ici -->
+                    </div>
                 </div>
             </section>
         </div>

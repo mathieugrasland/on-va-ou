@@ -574,3 +574,149 @@ a:hover {
         padding: 20px 15px;
     }
 }
+
+/* Styles pour le système d'amitié */
+.friends-section {
+    margin-top: 30px;
+}
+
+.friends-section h4 {
+    color: #5d4037;
+    margin: 20px 0 15px 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.add-friend-form {
+    background: #f8f4f0;
+    padding: 20px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+}
+
+.inline-form {
+    margin: 0;
+}
+
+.form-group-inline {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.form-group-inline input {
+    flex: 1;
+    margin: 0;
+}
+
+.form-group-inline button {
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.friend-request-item, .friend-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.friend-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.friend-name {
+    font-weight: 600;
+    color: #5d4037;
+}
+
+.friend-email {
+    font-size: 14px;
+    color: #666;
+}
+
+.request-status {
+    font-size: 14px;
+    color: #888;
+    font-style: italic;
+}
+
+.request-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.button-small {
+    padding: 6px 12px;
+    font-size: 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.button-accept {
+    background: #4caf50;
+    color: white;
+}
+
+.button-accept:hover {
+    background: #45a049;
+}
+
+.button-reject {
+    background: #f44336;
+    color: white;
+}
+
+.button-reject:hover {
+    background: #da190b;
+}
+
+.button-remove {
+    background: #ff9800;
+    color: white;
+}
+
+.button-remove:hover {
+    background: #f57c00;
+}
+
+.no-requests, .no-friends {
+    text-align: center;
+    color: #888;
+    font-style: italic;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 8px;
+}
+
+/* Responsive pour les amis */
+@media (max-width: 768px) {
+    .form-group-inline {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .form-group-inline button {
+        margin-top: 10px;
+    }
+    
+    .friend-request-item, .friend-item {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+        text-align: center;
+    }
+    
+    .request-actions {
+        justify-content: center;
+    }
+}
