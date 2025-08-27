@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;404;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 :root {
     --primary-color: #5d4037; /* Marron foncé */
@@ -11,8 +11,13 @@
     --transition-speed: 0.3s ease;
 }
 
+/* Optimisations performance */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
 body {
-    font-family: 'Poppins', sans-serif;
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     margin: 0;
     padding: 0;
     display: flex;
@@ -22,6 +27,10 @@ body {
     color: var(--dark-text);
     background-color: var(--light-bg);
     overflow: hidden;
+    /* Optimisation GPU */
+    will-change: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* Arrière-plan dynamique */
@@ -149,4 +158,151 @@ p a {
 p a:hover {
     color: var(--accent-color);
     text-decoration: underline;
+}
+
+/* 📱 RESPONSIVE DESIGN - Mobile First */
+@media (max-width: 480px) {
+    .container {
+        padding: 30px 15px;
+        margin: 0 5px;
+        max-width: 95%;
+        width: 95%;
+    }
+    
+    h1 {
+        font-size: 2rem;
+        margin-bottom: 20px;
+    }
+    
+    .button, form button {
+        padding: 14px 20px;
+        font-size: 16px;
+        /* Boutons plus gros sur mobile pour faciliter le touch */
+    }
+    
+    input {
+        padding: 14px;
+        font-size: 16px;
+        /* Évite le zoom automatique sur iOS */
+    }
+    
+    p {
+        font-size: 15px;
+        line-height: 1.5;
+    }
+}
+
+/* 💻 TABLET (Portrait) */
+@media (min-width: 481px) and (max-width: 768px) {
+    .container {
+        padding: 35px 25px;
+        max-width: 500px;
+    }
+    
+    .actions {
+        flex-direction: row;
+        gap: 12px;
+    }
+    
+    .actions .button {
+        flex: 1;
+    }
+}
+
+/* 🖥️ DESKTOP */
+@media (min-width: 769px) {
+    .container {
+        padding: 40px 30px;
+        max-width: 450px;
+    }
+    
+    .actions {
+        flex-direction: row;
+        gap: 15px;
+    }
+    
+    .actions .button {
+        flex: 1;
+    }
+    
+    /* Effet hover plus subtil sur desktop */
+    .button:hover, form button:hover {
+        transform: translateY(-2px);
+    }
+}
+
+/* 🖥️ LARGE DESKTOP */
+@media (min-width: 1200px) {
+    .container {
+        max-width: 500px;
+        padding: 45px 35px;
+    }
+}
+
+/* 📱 LANDSCAPE MOBILE - Ajustements pour orientation paysage */
+@media (max-width: 896px) and (orientation: landscape) {
+    body {
+        align-items: flex-start;
+        padding-top: 20px;
+        min-height: auto;
+    }
+    
+    .container {
+        margin: 20px auto;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .background-image {
+        filter: blur(3px) brightness(0.8);
+    }
+}
+
+/* 🎯 OPTIMISATIONS TOUCH DEVICES */
+@media (pointer: coarse) {
+    .button, form button {
+        min-height: 44px;
+        /* Apple recommande 44px minimum pour les éléments touchables */
+    }
+    
+    input {
+        min-height: 44px;
+    }
+}
+
+/* ⚡ PRÉFÉRENCES UTILISATEUR */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .background-image {
+        animation: none;
+    }
+    
+    .container {
+        animation: none;
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 🌙 SUPPORT DARK MODE (si l'utilisateur préfère) */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --light-bg: #1a1a1a;
+        --dark-text: #e0e0e0;
+        --input-border: #404040;
+    }
+    
+    .container {
+        background: rgba(40, 40, 40, 0.95);
+        backdrop-filter: blur(10px);
+    }
+    
+    .background-image {
+        filter: blur(5px) brightness(0.4);
+    }
 }

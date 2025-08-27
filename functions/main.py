@@ -1,71 +1,116 @@
 import functions_framework
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
+from flask import jsonify
+import os
 
-# Initialisation de l'application Firebase (une seule fois)
+# Initialisation optimisée de Firebase
 if not firebase_admin._apps:
-    cred = credentials.ApplicationDefault()
-    firebase_admin.initialize_app(cred)
+    # Utilise les variables d'environnement en production
+    if os.getenv('GOOGLE_CLOUD_PROJECT'):
+        firebase_admin.initialize_app()
+    else:
+        # Pour le développement local
+        cred = credentials.ApplicationDefault()
+        firebase_admin.initialize_app(cred)
 
+# Client Firestore global (réutilisé entre les invocations)
 db = firestore.client()
 
 @functions_framework.http
-def register_user(request):
-    """HTTP Cloud Function pour l'inscription."""
+def get_user_profile(request):
+    """Récupère le profil utilisateur - Cloud Function optimisée"""
+    # CORS headers pour les requêtes cross-origin
+    if request.method == 'OPTIONS':
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Max-Age': '3600'
+        }
+        return ('', 204, headers)
+
+    headers = {'Access-Control-Allow-Origin': '*'}
+
     try:
-        request_json = request.get_json(silent=True)
-        if not request_json or not all(k in request_json for k in ('email', 'password', 'firstName', 'lastName')):
-            return {"error": "Les données d'inscription sont incomplètes."}, 400
+        # Vérification du token d'authentification
+        authorization = request.headers.get('Authorization')
+        if not authorization or not authorization.startswith('Bearer '):
+            return jsonify({"error": "Token d'authentification manquant"}), 401, headers
 
-        email = request_json['email']
-        password = request_json['password']
-        firstName = request_json['firstName']
-        lastName = request_json['lastName']
+        id_token = authorization.split(' ')[1]
+        decoded_token = auth.verify_id_token(id_token)
+        uid = decoded_token['uid']
 
-        # 1. Créer l'utilisateur dans Firebase Authentication
-        user_record = auth.create_user(
-            email=email,
-            password=password
-        )
+        # Récupération du profil utilisateur
+        user_ref = db.collection('users').document(uid)
+        user_doc = user_ref.get()
 
-        # 2. Sauvegarder les informations supplémentaires dans Cloud Firestore
-        user_ref = db.collection('users').document(user_record.uid)
-        user_ref.set({
-            'firstName': firstName,
-            'lastName': lastName,
-            'email': email,
-            'preferences': {},
-            'address': '',
-            'createdAt': firestore.SERVER_TIMESTAMP
-        })
+        if not user_doc.exists:
+            return jsonify({"error": "Profil utilisateur non trouvé"}), 404, headers
 
-        return {"message": "Inscription réussie", "uid": user_record.uid}, 201
+        user_data = user_doc.to_dict()
+        # Ne pas exposer d'informations sensibles
+        safe_data = {
+            'firstName': user_data.get('firstName', ''),
+            'lastName': user_data.get('lastName', ''),
+            'email': user_data.get('email', ''),
+            'preferences': user_data.get('preferences', {}),
+            'address': user_data.get('address', '')
+        }
 
-    except auth.EmailAlreadyExistsError:
-        return {"error": "Cette adresse e-mail est déjà utilisée."}, 409
+        return jsonify(safe_data), 200, headers
+
+    except auth.InvalidIdTokenError:
+        return jsonify({"error": "Token invalide"}), 401, headers
     except Exception as e:
-        return {"error": f"Erreur interne : {e}"}, 500
-
+        print(f"Erreur: {e}")  # Pour les logs
+        return jsonify({"error": "Erreur interne du serveur"}), 500, headers
 
 @functions_framework.http
-def login_user(request):
-    """HTTP Cloud Function pour la connexion."""
+def update_user_profile(request):
+    """Met à jour le profil utilisateur"""
+    if request.method == 'OPTIONS':
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Max-Age': '3600'
+        }
+        return ('', 204, headers)
+
+    headers = {'Access-Control-Allow-Origin': '*'}
+
     try:
+        # Vérification du token
+        authorization = request.headers.get('Authorization')
+        if not authorization or not authorization.startswith('Bearer '):
+            return jsonify({"error": "Token d'authentification manquant"}), 401, headers
+
+        id_token = authorization.split(' ')[1]
+        decoded_token = auth.verify_id_token(id_token)
+        uid = decoded_token['uid']
+
+        # Données à mettre à jour
         request_json = request.get_json(silent=True)
-        if not request_json or not all(k in request_json for k in ('email', 'password')):
-            return {"error": "Les données de connexion sont incomplètes."}, 400
+        if not request_json:
+            return jsonify({"error": "Données manquantes"}), 400, headers
 
-        email = request_json['email']
-        password = request_json['password']
+        # Champs autorisés à être mis à jour
+        allowed_fields = ['firstName', 'lastName', 'address', 'preferences']
+        update_data = {k: v for k, v in request_json.items() if k in allowed_fields}
+        
+        if not update_data:
+            return jsonify({"error": "Aucun champ valide à mettre à jour"}), 400, headers
 
-        # La fonction va essayer de se connecter avec ces identifiants
-        user = auth.get_user_by_email(email)
-        # Ceci est une simplification. La vraie validation se ferait avec un token.
-        # Pour le tutoriel, on va juste vérifier si l'utilisateur existe.
+        # Mise à jour dans Firestore
+        user_ref = db.collection('users').document(uid)
+        user_ref.update(update_data)
 
-        return {"message": "Connexion réussie", "uid": user.uid}, 200
+        return jsonify({"message": "Profil mis à jour avec succès"}), 200, headers
 
-    except auth.UserNotFoundError:
-        return {"error": "Adresse e-mail ou mot de passe invalide."}, 401
+    except auth.InvalidIdTokenError:
+        return jsonify({"error": "Token invalide"}), 401, headers
     except Exception as e:
-        return {"error": f"Erreur interne: {e}"}, 500
+        print(f"Erreur: {e}")
+        return jsonify({"error": "Erreur interne du serveur"}), 500, headers

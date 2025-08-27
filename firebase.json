@@ -8,9 +8,12 @@
         ".git",
         "firebase-debug.log",
         "firebase-debug.*.log",
-        "*.local"
+        "*.local",
+        "__pycache__",
+        "*.pyc",
+        ".pytest_cache"
       ],
-      "runtime": "python313"
+      "runtime": "python312"
     }
   ],
   "hosting": {
@@ -18,17 +21,53 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "**/test-firebase.html"
     ],
     "rewrites": [
       {
-        "source": "/registerUser",
-        "function": "register_user"
+        "source": "/api/profile",
+        "function": "get_user_profile"
       },
       {
-        "source": "/loginUser",
-        "function": "login_user"
+        "source": "/api/profile/update", 
+        "function": "update_user_profile"
       }
-    ]
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|css|html|png|jpg|jpeg|gif|svg|webp)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=86400"
+          }
+        ]
+      }
+    ],
+    "cleanUrls": true,
+    "trailingSlash": false
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "functions": {
+      "port": 5001
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "hosting": {
+      "port": 5000
+    },
+    "ui": {
+      "enabled": true
+    },
+    "singleProjectMode": true
   }
 }

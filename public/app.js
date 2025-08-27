@@ -1,8 +1,19 @@
+import { auth, db } from './firebase-config.js';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+
 document.addEventListener('DOMContentLoaded', () => {
     const registerForm = document.getElementById('register-form');
     const loginForm = document.getElementById('login-form');
 
-    // Logique pour l'inscription (déjà présente)
+    // Vérifier si l'utilisateur est déjà connecté
+    onAuthStateChanged(auth, (user) => {
+        if (user && (window.location.pathname.includes('login.html') || window.location.pathname.includes('register.html'))) {
+            window.location.href = 'dashboard.html';
+        }
+    });
+
+    // Inscription avec Firebase Auth côté client
     if (registerForm) {
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -12,26 +23,30 @@ document.addEventListener('DOMContentLoaded', () => {
             const password = e.target.password.value;
 
             try {
-                const response = await fetch('/registerUser', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password, firstName, lastName })
+                // Créer l'utilisateur avec Firebase Auth
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // Sauvegarder le profil dans Firestore
+                await setDoc(doc(db, 'users', user.uid), {
+                    firstName: firstName,
+                    lastName: lastName,
+                    email: email,
+                    preferences: {},
+                    address: '',
+                    createdAt: new Date()
                 });
-                const result = await response.json();
-                if (response.ok) {
-                    alert('Inscription réussie ! Vous pouvez maintenant vous connecter.');
-                    window.location.href = 'login.html';
-                } else {
-                    alert('Erreur: ' + result.error);
-                }
+
+                alert('Inscription réussie ! Vous pouvez maintenant vous connecter.');
+                window.location.href = 'login.html';
             } catch (error) {
-                alert('Une erreur s\'est produite. Veuillez réessayer.');
-                console.error(error);
+                console.error('Erreur inscription:', error);
+                alert('Erreur: ' + error.message);
             }
         });
     }
 
-    // Nouvelle logique pour la connexion
+    // Connexion avec Firebase Auth côté client
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -39,22 +54,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const password = e.target.password.value;
 
             try {
-                const response = await fetch('/loginUser', { // Requête vers la future Cloud Function de connexion
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-                const result = await response.json();
-                if (response.ok) {
-                    alert('Connexion réussie !');
-                    // On peut rediriger vers la page du profil ou la carte
-                    window.location.href = 'dashboard.html';
-                } else {
-                    alert('Erreur: ' + result.error);
-                }
+                await signInWithEmailAndPassword(auth, email, password);
+                alert('Connexion réussie !');
+                window.location.href = 'dashboard.html';
             } catch (error) {
-                alert('Une erreur s\'est produite. Veuillez réessayer.');
-                console.error(error);
+                console.error('Erreur connexion:', error);
+                alert('Erreur: ' + error.message);
             }
         });
     }

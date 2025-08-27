@@ -3,15 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>On va ici ?</title>
+    <title>Dashboard - On va où ?</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="background-image"></div>
     <div class="container">
-        <h1>Yo !</h1>
-        <p>Ici je mettrai le bar proposé en ce jour...</p>
-        <p>Mais déjà c'était pas facile de faire un site web lol.</p>
+        <h1>Salut <span id="user-name">...</span> !</h1>
+        <p>Bientôt ici tu pourras voir les bars proposés...</p>
+        <div class="actions">
+            <button id="logout-btn" class="button button-secondary">Se déconnecter</button>
+        </div>
     </div>
+    <script type="module" src="dashboard.js"></script>
 </body>
 </html>

@@ -1,53 +1,181 @@
-name: Deploy to Firebase Hosting and Functions
+name: 🚀 Deploy to Firebase
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch: # Permet déclenchement manuel
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.12'
 
 jobs:
-  # Job to deploy Firebase Hosting (runs on every push)
-  deploy_hosting:
+  # Analyse des changements pour optimiser les déploiements
+  changes:
+    name: 🔍 Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      hosting: ${{ steps.changes.outputs.hosting }}
+      functions: ${{ steps.changes.outputs.functions }}
+      firestore: ${{ steps.changes.outputs.firestore }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            hosting:
+              - 'public/**'
+              - 'firebase.json'
+            functions:
+              - 'functions/**'
+            firestore:
+              - 'firestore.rules'
+              - 'firestore.indexes.json'
+
+  # Validation et tests
+  validate:
+    name: ✅ Validate Code
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v1
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Validate Python syntax
+        run: |
+          python -m py_compile functions/main.py
+          echo "✅ Python syntax valid"
+
+      - name: Validate JSON files
+        run: |
+          python -m json.tool firebase.json > /dev/null
+          python -m json.tool firestore.indexes.json > /dev/null
+          echo "✅ JSON files valid"
+
+      - name: Check Firebase config
+        run: |
+          if grep -q "your-api-key" public/firebase-config.js; then
+            echo "❌ Firebase config contains placeholder values"
+            exit 1
+          fi
+          echo "✅ Firebase config looks good"
+
+  # Déploiement Hosting (rapide)
+  deploy-hosting:
+    name: 🌐 Deploy Hosting
+    runs-on: ubuntu-latest
+    needs: [changes, validate]
+    if: needs.changes.outputs.hosting == 'true' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
-
-      - name: Install Firebase CLI
-        run: npm install -g firebase-tools
-
-      - name: Deploy to Firebase Hosting
-        run: firebase deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }}
-
-  # Job to deploy Cloud Functions (only runs when 'functions/' changes)
-  deploy_functions:
-    runs-on: ubuntu-latest
-    if: github.event.push.before != github.event.push.after && contains(github.event.commits.*.added, 'functions/') || contains(github.event.commits.*.modified, 'functions/') || contains(github.event.commits.*.removed, 'functions/')
-    needs: deploy_hosting
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
 
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v1
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Deploy Cloud Functions
-        uses: google-github-actions/deploy-cloud-functions@v1
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools@latest
+
+      - name: Deploy Hosting
+        run: |
+          firebase deploy --only hosting --project ${{ secrets.GCP_PROJECT_ID }} --non-interactive
+          echo "✅ Hosting deployed successfully"
+
+  # Déploiement Functions (plus lourd)
+  deploy-functions:
+    name: ⚡ Deploy Functions
+    runs-on: ubuntu-latest
+    needs: [changes, validate]
+    if: needs.changes.outputs.functions == 'true' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          name: registerUserProfile
-          runtime: python311
-          entry_point: registerUserProfile
-          source_dir: 'functions'
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools@latest
+
+      - name: Install Python dependencies
+        working-directory: functions
+        run: |
+          pip install -r requirements.txt
+          echo "✅ Dependencies installed"
+
+      - name: Deploy Functions
+        run: |
+          firebase deploy --only functions --project ${{ secrets.GCP_PROJECT_ID }} --non-interactive
+          echo "✅ Functions deployed successfully"
+
+  # Déploiement Firestore Rules
+  deploy-firestore:
+    name: 🔐 Deploy Firestore Rules
+    runs-on: ubuntu-latest
+    needs: [changes, validate]
+    if: needs.changes.outputs.firestore == 'true' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools@latest
+
+      - name: Deploy Firestore Rules
+        run: |
+          firebase deploy --only firestore --project ${{ secrets.GCP_PROJECT_ID }} --non-interactive
+          echo "✅ Firestore rules deployed successfully"
+
+  # Notification de succès
+  notify-success:
+    name: 🎉 Deployment Complete
+    runs-on: ubuntu-latest
+    needs: [deploy-hosting, deploy-functions, deploy-firestore]
+    if: always() && (needs.deploy-hosting.result == 'success' || needs.deploy-functions.result == 'success' || needs.deploy-firestore.result == 'success')
+    steps:
+      - name: Success notification
+        run: |
+          echo "🎉 Deployment completed successfully!"
+          echo "🌐 Your app is live at: https://${{ secrets.GCP_PROJECT_ID }}.web.app"
+          echo "📊 Firebase Console: https://console.firebase.google.com/project/${{ secrets.GCP_PROJECT_ID }}"
