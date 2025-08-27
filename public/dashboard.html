@@ -75,30 +75,9 @@
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('dashboard-content').classList.remove('hidden');
                 
-                // Charger la liste des amis (à implémenter)
-                await loadFriends();
-                
             } catch (error) {
                 console.error('Erreur chargement dashboard:', error);
                 showError('Erreur lors du chargement du tableau de bord');
-            }
-        }
-
-        // Charger la liste des amis
-        async function loadFriends() {
-            try {
-                const friendsList = document.getElementById('friends-list');
-                
-                // Pour l'instant, afficher un message
-                friendsList.innerHTML = `
-                    <div class="friends-placeholder">
-                        <p>🚧 Fonctionnalité amis en cours de développement</p>
-                        <p>Bientôt vous pourrez ajouter des amis et trouver des bars ensemble !</p>
-                    </div>
-                `;
-                
-            } catch (error) {
-                console.error('Erreur chargement amis:', error);
             }
         }
 
@@ -191,14 +170,6 @@
                     <button id="logout-btn">Déconnexion</button>
                 </div>
             </header>
-
-            <!-- Section amis -->
-            <section class="dashboard-section">
-                <h3>👥 Mes amis</h3>
-                <div id="friends-list">
-                    <!-- Les amis seront chargés ici -->
-                </div>
-            </section>
 
             <!-- Section recherche de bars -->
             <section class="dashboard-section highlight">
