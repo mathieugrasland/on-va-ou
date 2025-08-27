@@ -283,3 +283,132 @@ def send_friend_request(request):
     except Exception as e:
         print(f"Erreur: {e}")
         return jsonify({"error": "Erreur interne du serveur"}), 500, headers
+
+
+@functions_framework.http
+def clean_duplicate_friend_requests(request):
+    """Nettoyer les demandes d'amis dupliquées et les invitations bidirectionnelles"""
+    if request.method == 'OPTIONS':
+        headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'POST',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Access-Control-Max-Age': '3600'
+        }
+        return ('', 204, headers)
+
+    headers = {'Access-Control-Allow-Origin': '*'}
+
+    try:
+        # Vérification du token d'authentification
+        authorization = request.headers.get('Authorization')
+        if not authorization or not authorization.startswith('Bearer '):
+            return jsonify({"error": "Token d'authentification manquant"}), 401, headers
+
+        id_token = authorization.split(' ')[1]
+        decoded_token = auth.verify_id_token(id_token)
+        user_uid = decoded_token['uid']
+        
+        db = firestore.client()
+        user_ref = db.collection('users').document(user_uid)
+        user_doc = user_ref.get()
+        
+        if not user_doc.exists:
+            return jsonify({"error": "Utilisateur non trouvé"}), 404, headers
+            
+        user_data = user_doc.to_dict()
+        friends = user_data.get('friends', [])
+        friend_requests = user_data.get('friendRequests', {'sent': [], 'received': []})
+        
+        # Assurer la structure correcte
+        if isinstance(friend_requests, list):
+            friend_requests = {'sent': [], 'received': friend_requests}
+        
+        if 'sent' not in friend_requests:
+            friend_requests['sent'] = []
+        if 'received' not in friend_requests:
+            friend_requests['received'] = []
+            
+        changes_made = False
+        
+        # Nettoyer les demandes envoyées si l'utilisateur est déjà ami
+        original_sent = friend_requests['sent'].copy()
+        friend_requests['sent'] = [uid for uid in friend_requests['sent'] if uid not in friends]
+        if len(friend_requests['sent']) != len(original_sent):
+            changes_made = True
+            
+        # Nettoyer les demandes reçues si l'utilisateur est déjà ami
+        original_received = friend_requests['received'].copy()
+        friend_requests['received'] = [uid for uid in friend_requests['received'] if uid not in friends]
+        if len(friend_requests['received']) != len(original_received):
+            changes_made = True
+            
+        # Gérer les invitations bidirectionnelles (auto-accepter si les deux ont envoyé)
+        mutual_requests = []
+        for sent_uid in friend_requests['sent']:
+            if sent_uid in friend_requests['received']:
+                mutual_requests.append(sent_uid)
+                
+        if mutual_requests:
+            for friend_uid in mutual_requests:
+                # Ajouter aux amis
+                if friend_uid not in friends:
+                    friends.append(friend_uid)
+                    
+                # Retirer des demandes
+                if friend_uid in friend_requests['sent']:
+                    friend_requests['sent'].remove(friend_uid)
+                if friend_uid in friend_requests['received']:
+                    friend_requests['received'].remove(friend_uid)
+                    
+                # Mettre à jour l'autre utilisateur aussi
+                try:
+                    other_user_ref = db.collection('users').document(friend_uid)
+                    other_user_doc = other_user_ref.get()
+                    if other_user_doc.exists:
+                        other_data = other_user_doc.to_dict()
+                        other_friends = other_data.get('friends', [])
+                        other_requests = other_data.get('friendRequests', {'sent': [], 'received': []})
+                        
+                        if isinstance(other_requests, list):
+                            other_requests = {'sent': [], 'received': other_requests}
+                            
+                        # Ajouter l'amitié mutuelle
+                        if user_uid not in other_friends:
+                            other_friends.append(user_uid)
+                            
+                        # Nettoyer les demandes
+                        if 'sent' in other_requests and user_uid in other_requests['sent']:
+                            other_requests['sent'].remove(user_uid)
+                        if 'received' in other_requests and user_uid in other_requests['received']:
+                            other_requests['received'].remove(user_uid)
+                            
+                        other_user_ref.update({
+                            'friends': other_friends,
+                            'friendRequests': other_requests
+                        })
+                except Exception as e:
+                    print(f"Erreur mise à jour ami {friend_uid}: {e}")
+                    
+            changes_made = True
+            
+        # Sauvegarder les modifications si nécessaire
+        if changes_made:
+            user_ref.update({
+                'friends': friends,
+                'friendRequests': friend_requests
+            })
+            
+        return jsonify({
+            "message": "Nettoyage terminé",
+            "changes_made": changes_made,
+            "mutual_friends_added": len(mutual_requests),
+            "requests_cleaned": {
+                "sent_removed": len(original_sent) - len(friend_requests['sent']),
+                "received_removed": len(original_received) - len(friend_requests['received'])
+            }
+        }), 200, headers
+
+    except Exception as e:
+        print(f"Erreur nettoyage: {str(e)}")
+        return jsonify({"error": "Erreur lors du nettoyage"}), 500, headers

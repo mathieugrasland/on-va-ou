@@ -279,23 +279,49 @@
                 const receivedContainer = document.getElementById('received-requests');
                 const sentContainer = document.getElementById('sent-requests');
                 
+                // Assurer la structure correcte des friendRequests
+                if (!userProfile.friendRequests) {
+                    userProfile.friendRequests = { sent: [], received: [] };
+                } else if (Array.isArray(userProfile.friendRequests)) {
+                    // Migration de l'ancien système vers le nouveau
+                    console.log('Migration de l\'ancien système détectée');
+                    userProfile.friendRequests = { 
+                        sent: [], 
+                        received: userProfile.friendRequests 
+                    };
+                } else {
+                    // Assurer que les propriétés existent
+                    if (!userProfile.friendRequests.sent) userProfile.friendRequests.sent = [];
+                    if (!userProfile.friendRequests.received) userProfile.friendRequests.received = [];
+                }
+                
                 if (userProfile.friendRequests) {
                     // Demandes reçues
                     if (userProfile.friendRequests.received && userProfile.friendRequests.received.length > 0) {
                         const receivedHTML = await Promise.all(
                             userProfile.friendRequests.received.map(async (senderUid) => {
-                                const senderDoc = await getDoc(doc(db, 'users', senderUid));
-                                const senderData = senderDoc.data();
-                                return `
-                                    <div class="friend-request-item">
-                                        <span class="friend-name">${senderData.firstName} ${senderData.lastName}</span>
-                                        <span class="friend-email">(${senderData.email})</span>
-                                        <div class="request-actions">
-                                            <button onclick="acceptFriendRequest('${senderUid}')" class="button-small button-accept">Accepter</button>
-                                            <button onclick="rejectFriendRequest('${senderUid}')" class="button-small button-reject">Refuser</button>
-                                        </div>
-                                    </div>
-                                `;
+                                try {
+                                    const senderDoc = await getDoc(doc(db, 'users', senderUid));
+                                    if (senderDoc.exists()) {
+                                        const senderData = senderDoc.data();
+                                        return `
+                                            <div class="friend-request-item">
+                                                <span class="friend-name">${senderData.firstName} ${senderData.lastName}</span>
+                                                <span class="friend-email">(${senderData.email})</span>
+                                                <div class="request-actions">
+                                                    <button onclick="acceptFriendRequest('${senderUid}')" class="button-small button-accept">Accepter</button>
+                                                    <button onclick="rejectFriendRequest('${senderUid}')" class="button-small button-reject">Refuser</button>
+                                                </div>
+                                            </div>
+                                        `;
+                                    } else {
+                                        console.warn('Utilisateur non trouvé:', senderUid);
+                                        return '';
+                                    }
+                                } catch (error) {
+                                    console.error('Erreur chargement expéditeur:', senderUid, error);
+                                    return '';
+                                }
                             })
                         );
                         receivedContainer.innerHTML = receivedHTML.join('');
@@ -682,7 +708,69 @@
                     }
                 });
             }
+            
+            // Gérer le bouton de nettoyage
+            const cleanBtn = document.getElementById('clean-requests-btn');
+            if (cleanBtn) {
+                cleanBtn.addEventListener('click', async () => {
+                    if (confirm('Voulez-vous nettoyer les demandes d\'amis dupliquées et les invitations bidirectionnelles ?')) {
+                        await cleanDuplicateRequests();
+                    }
+                });
+            }
         });
+
+        // Fonction de nettoyage des demandes dupliquées
+        async function cleanDuplicateRequests() {
+            try {
+                const cleanBtn = document.getElementById('clean-requests-btn');
+                if (cleanBtn) {
+                    cleanBtn.disabled = true;
+                    cleanBtn.textContent = '🧹 Nettoyage en cours...';
+                }
+
+                const response = await fetch('https://us-central1-on-va-ou-470217.cloudfunctions.net/clean_duplicate_friend_requests', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${await currentUser.getIdToken()}`
+                    }
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    console.log('Résultat nettoyage:', result);
+                    
+                    let message = 'Nettoyage terminé !';
+                    if (result.mutual_friends_added > 0) {
+                        message += ` ${result.mutual_friends_added} amitié(s) mutuelle(s) ajoutée(s).`;
+                    }
+                    if (result.requests_cleaned.sent_removed > 0 || result.requests_cleaned.received_removed > 0) {
+                        message += ` ${result.requests_cleaned.sent_removed + result.requests_cleaned.received_removed} demande(s) nettoyée(s).`;
+                    }
+                    
+                    showMessage(message, 'success');
+                    
+                    // Recharger les données
+                    await loadUserProfile();
+                    await loadFriendRequests();
+                    await loadConfirmedFriends();
+                } else {
+                    showMessage(result.error || 'Erreur lors du nettoyage', 'error');
+                }
+
+            } catch (error) {
+                console.error('Erreur nettoyage:', error);
+                showMessage('Erreur de connexion lors du nettoyage', 'error');
+            } finally {
+                const cleanBtn = document.getElementById('clean-requests-btn');
+                if (cleanBtn) {
+                    cleanBtn.disabled = false;
+                    cleanBtn.textContent = '🧹 Nettoyer les demandes';
+                }
+            }
+        }
 
         // Exposer les fonctions globalement pour les événements onclick
         window.acceptFriendRequest = acceptFriendRequest;
@@ -797,6 +885,11 @@
                             <button type="submit" class="button button-secondary">Envoyer une demande</button>
                         </div>
                     </form>
+                    
+                    <!-- Actions de maintenance -->
+                    <button type="button" id="clean-requests-btn" class="button button-warning" style="margin-top: 10px; font-size: 12px;">
+                        🧹 Nettoyer les demandes
+                    </button>
                 </div>
 
                 <!-- Demandes reçues -->

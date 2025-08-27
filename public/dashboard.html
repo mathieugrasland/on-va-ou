@@ -266,9 +266,27 @@
         import { doc, getDoc, setDoc, collection, query, where, getDocs, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
         let secureMapManager = null;
         let currentUser = null;
+        let googleMapsLoaded = false;
+        let userAuthenticated = false;
+        let mapInitialized = false;
 
         // Écouter l'événement de chargement Google Maps
         window.addEventListener('googleMapsLoaded', initSecureMap);
+
+        // Fonction centralisée pour vérifier et initialiser la carte
+        function tryInitializeMap() {
+            console.log('Vérification conditions:', {
+                googleMapsLoaded,
+                userAuthenticated,
+                mapInitialized,
+                secureMapManager: !!secureMapManager
+            });
+            
+            if (googleMapsLoaded && userAuthenticated && !mapInitialized && secureMapManager) {
+                console.log('Toutes les conditions remplies, initialisation de la carte...');
+                initializeMapForUser();
+            }
+        }
 
         // Fonction d'initialisation de la carte sécurisée
         function initSecureMap() {
@@ -282,21 +300,20 @@
             }
             
             secureMapManager = new SecureMapManager('map-container', auth, db);
+            googleMapsLoaded = true;
             
-            // Initialiser la carte si l'utilisateur est déjà connecté
-            if (currentUser && secureMapManager && !secureMapManager.isInitialized) {
-                console.log('Utilisateur déjà connecté, initialisation immédiate de la carte');
-                initializeMapForUser();
-            } else {
-                console.log('En attente de la connexion utilisateur pour initialiser la carte');
-            }
+            console.log('Google Maps chargé et SecureMapManager créé');
+            tryInitializeMap();
         }
 
         // Initialiser la carte pour l'utilisateur connecté
         async function initializeMapForUser() {
             try {
+                console.log('Initialisation de la carte pour utilisateur...');
                 await secureMapManager.initializeMap();
                 await secureMapManager.loadFriendsLocations();
+                mapInitialized = true;
+                console.log('Carte initialisée avec succès');
                 
             } catch (error) {
                 console.error('Erreur initialisation carte:', error);
@@ -309,18 +326,13 @@
             if (user) {
                 console.log('Utilisateur authentifié:', user.email);
                 currentUser = user;
+                userAuthenticated = true;
+                
                 await loadUserProfile();
                 await loadFriendsList();
                 
-                // Si Google Maps est déjà chargé, initialiser la carte
-                if (secureMapManager && !secureMapManager.isInitialized) {
-                    console.log('Google Maps déjà chargé, initialisation de la carte...');
-                    await initializeMapForUser();
-                } else if (!secureMapManager) {
-                    console.log('Google Maps pas encore chargé, en attente...');
-                } else if (secureMapManager.isInitialized) {
-                    console.log('Carte déjà initialisée');
-                }
+                // Essayer d'initialiser la carte maintenant que l'utilisateur est authentifié
+                tryInitializeMap();
             } else {
                 console.log('Utilisateur non authentifié, redirection...');
                 window.location.href = 'login.html';
