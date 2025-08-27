@@ -177,30 +177,81 @@ def geocode_address(request):
         if not address:
             return jsonify({"error": "Adresse vide"}), 400, headers
         
-        # Appel sécurisé à l'API Google Geocoding
-        geocoding_url = "https://maps.googleapis.com/maps/api/geocode/json"
-        params = {
-            'address': address,
-            'key': GOOGLE_MAPS_API_KEY
+        # Appel sécurisé à l'API Google Places Autocomplete puis Geocoding
+        # D'abord, essayons de trouver des suggestions avec Places
+        places_url = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
+        places_params = {
+            'input': address,
+            'key': GOOGLE_MAPS_API_KEY,
+            'types': 'establishment|geocode',  # Inclut les lieux et les adresses
+            'language': 'fr',
+            'components': 'country:fr'  # Limite à la France
         }
         
-        response = requests.get(geocoding_url, params=params, timeout=10)
-        response.raise_for_status()
-        
-        geocoding_data = response.json()
-        
-        if geocoding_data['status'] == 'OK' and geocoding_data['results']:
-            result = geocoding_data['results'][0]
-            location = result['geometry']['location']
+        try:
+            places_response = requests.get(places_url, params=places_params, timeout=10)
+            places_response.raise_for_status()
+            places_data = places_response.json()
             
-            return jsonify({
-                "success": True,
-                "location": {
-                    "lat": location['lat'],
-                    "lng": location['lng']
-                },
-                "formatted_address": result['formatted_address']
-            }), 200, headers
+            if places_data['status'] == 'OK' and places_data['predictions']:
+                # Utiliser la première suggestion
+                place_id = places_data['predictions'][0]['place_id']
+                
+                # Maintenant, obtenir les détails du lieu avec Geocoding
+                geocoding_url = "https://maps.googleapis.com/maps/api/geocode/json"
+                geocoding_params = {
+                    'place_id': place_id,
+                    'key': GOOGLE_MAPS_API_KEY
+                }
+                
+                response = requests.get(geocoding_url, params=geocoding_params, timeout=10)
+                response.raise_for_status()
+                geocoding_data = response.json()
+                
+                if geocoding_data['status'] == 'OK' and geocoding_data['results']:
+                    result = geocoding_data['results'][0]
+                    location = result['geometry']['location']
+                    
+                    # Ajouter des informations supplémentaires si disponibles
+                    additional_info = {}
+                    if 'types' in result:
+                        additional_info['type'] = result['types'][0]
+                    if 'name' in places_data['predictions'][0]:
+                        additional_info['name'] = places_data['predictions'][0]['description']
+                    
+                    return jsonify({
+                        "success": True,
+                        "location": {
+                            "lat": location['lat'],
+                            "lng": location['lng']
+                        },
+                        "formatted_address": result['formatted_address'],
+                        "additional_info": additional_info
+                    }), 200, headers
+            
+            # Si Places ne trouve rien, essayer le géocodage direct
+            geocoding_params = {
+                'address': address,
+                'key': GOOGLE_MAPS_API_KEY,
+                'region': 'fr'
+            }
+            
+            response = requests.get(geocoding_url, params=geocoding_params, timeout=10)
+            response.raise_for_status()
+            geocoding_data = response.json()
+            
+            if geocoding_data['status'] == 'OK' and geocoding_data['results']:
+                result = geocoding_data['results'][0]
+                location = result['geometry']['location']
+                
+                return jsonify({
+                    "success": True,
+                    "location": {
+                        "lat": location['lat'],
+                        "lng": location['lng']
+                    },
+                    "formatted_address": result['formatted_address']
+                }), 200, headers
         else:
             return jsonify({
                 "success": False,
