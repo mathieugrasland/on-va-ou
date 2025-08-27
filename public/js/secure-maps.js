@@ -3,7 +3,7 @@ import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase
 
 class SecureGeocodingService {
     constructor(auth = null) {
-        this.baseUrl = 'https://us-central1-on-va-ou-470217.cloudfunctions.net';
+        this.baseUrl = 'https://on-va-ou-470217.web.app';  // URL de base de l'application
         this.auth = auth;
     }
 
@@ -16,7 +16,7 @@ class SecureGeocodingService {
 
             const token = await user.getIdToken();
             
-            const response = await fetch(`${this.baseUrl}/geocode_address`, {
+            const response = await fetch(`${this.baseUrl}/api/geocode`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
