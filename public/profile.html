@@ -708,69 +708,7 @@
                     }
                 });
             }
-            
-            // Gérer le bouton de nettoyage
-            const cleanBtn = document.getElementById('clean-requests-btn');
-            if (cleanBtn) {
-                cleanBtn.addEventListener('click', async () => {
-                    if (confirm('Voulez-vous nettoyer les demandes d\'amis dupliquées et les invitations bidirectionnelles ?')) {
-                        await cleanDuplicateRequests();
-                    }
-                });
-            }
         });
-
-        // Fonction de nettoyage des demandes dupliquées
-        async function cleanDuplicateRequests() {
-            try {
-                const cleanBtn = document.getElementById('clean-requests-btn');
-                if (cleanBtn) {
-                    cleanBtn.disabled = true;
-                    cleanBtn.textContent = '🧹 Nettoyage en cours...';
-                }
-
-                const response = await fetch('https://us-central1-on-va-ou-470217.cloudfunctions.net/clean_duplicate_friend_requests', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${await currentUser.getIdToken()}`
-                    }
-                });
-
-                const result = await response.json();
-
-                if (response.ok) {
-                    console.log('Résultat nettoyage:', result);
-                    
-                    let message = 'Nettoyage terminé !';
-                    if (result.mutual_friends_added > 0) {
-                        message += ` ${result.mutual_friends_added} amitié(s) mutuelle(s) ajoutée(s).`;
-                    }
-                    if (result.requests_cleaned.sent_removed > 0 || result.requests_cleaned.received_removed > 0) {
-                        message += ` ${result.requests_cleaned.sent_removed + result.requests_cleaned.received_removed} demande(s) nettoyée(s).`;
-                    }
-                    
-                    showMessage(message, 'success');
-                    
-                    // Recharger les données
-                    await loadUserProfile();
-                    await loadFriendRequests();
-                    await loadConfirmedFriends();
-                } else {
-                    showMessage(result.error || 'Erreur lors du nettoyage', 'error');
-                }
-
-            } catch (error) {
-                console.error('Erreur nettoyage:', error);
-                showMessage('Erreur de connexion lors du nettoyage', 'error');
-            } finally {
-                const cleanBtn = document.getElementById('clean-requests-btn');
-                if (cleanBtn) {
-                    cleanBtn.disabled = false;
-                    cleanBtn.textContent = '🧹 Nettoyer les demandes';
-                }
-            }
-        }
 
         // Exposer les fonctions globalement pour les événements onclick
         window.acceptFriendRequest = acceptFriendRequest;
@@ -885,11 +823,6 @@
                             <button type="submit" class="button button-secondary">Envoyer une demande</button>
                         </div>
                     </form>
-                    
-                    <!-- Actions de maintenance -->
-                    <button type="button" id="clean-requests-btn" class="button button-warning" style="margin-top: 10px; font-size: 12px;">
-                        🧹 Nettoyer les demandes
-                    </button>
                 </div>
 
                 <!-- Demandes reçues -->
