@@ -65,7 +65,19 @@
                     const needsRepair = await checkAndRepairProfile();
                     
                     // Vérifier si c'est un nouveau utilisateur ou un profil incomplet
-                    isNewUser = needsRepair || !userProfile.address || !userProfile.transportMode || !userProfile.preferences || !userProfile.firstName || !userProfile.lastName;
+                    // Après réparation, re-vérifier les champs pour déterminer si c'est vraiment un nouveau utilisateur
+                    const missingRequiredFields = !userProfile.firstName || !userProfile.lastName || 
+                                                !userProfile.address || !userProfile.transportMode || 
+                                                !userProfile.preferences;
+                    
+                    isNewUser = missingRequiredFields;
+                    
+                    console.log('Profile check:', {
+                        needsRepair,
+                        missingRequiredFields,
+                        isNewUser,
+                        profileCompleted: userProfile.profileCompleted
+                    });
                     
                     updateUI();
                     hideLoading();
@@ -130,8 +142,21 @@
                 needsUpdate = true;
             }
             
-            // Forcer la revalidation du profil
-            if (needsUpdate || !userProfile.profileCompleted) {
+            // Logique simplifiée pour profileCompleted
+            const hasAllRequiredFields = (userProfile.firstName || updates.firstName !== undefined) && 
+                                        (userProfile.lastName || updates.lastName !== undefined) && 
+                                        (userProfile.email || updates.email !== undefined) && 
+                                        (userProfile.address || updates.address !== undefined) && 
+                                        (userProfile.transportMode || updates.transportMode !== undefined) && 
+                                        (userProfile.preferences || updates.preferences !== undefined);
+            
+            // Si tous les champs sont présents (ou seront présents après update) et que profileCompleted est false
+            if (hasAllRequiredFields && !userProfile.profileCompleted && !needsUpdate) {
+                updates.profileCompleted = true;
+                needsUpdate = true;
+            }
+            // Si des champs manquent, s'assurer que profileCompleted est false
+            else if (!hasAllRequiredFields) {
                 updates.profileCompleted = false;
                 needsUpdate = true;
             }
@@ -142,7 +167,7 @@
                     await updateDoc(doc(db, 'users', currentUser.uid), updates);
                     // Mettre à jour le profil local
                     userProfile = { ...userProfile, ...updates };
-                    console.log('Profil réparé automatiquement');
+                    console.log('Profil réparé automatiquement:', updates);
                 } catch (error) {
                     console.error('Erreur réparation profil:', error);
                 }
@@ -189,13 +214,13 @@
 
         // Vérifier si le profil est complet
         function isProfileComplete() {
-            return userProfile.firstName && 
+            return userProfile.profileCompleted && 
+                   userProfile.firstName && 
                    userProfile.lastName && 
                    userProfile.email && 
                    userProfile.address && 
                    userProfile.transportMode && 
-                   userProfile.preferences &&
-                   userProfile.profileCompleted;
+                   userProfile.preferences;
         }
 
         // Charger la liste des amis et demandes
@@ -499,10 +524,15 @@
                 
                 showMessage('Profil mis à jour avec succès !');
                 
-                // Redirection vers dashboard après 2 secondes
+                // Mettre à jour le flag localement pour éviter les problèmes de timing
+                userProfile.profileCompleted = true;
+                isNewUser = false;
+                
+                // Redirection vers dashboard après 1 seconde
                 setTimeout(() => {
+                    console.log('Redirecting to dashboard...');
                     window.location.href = 'dashboard.html';
-                }, 2000);
+                }, 1000);
 
             } catch (error) {
                 console.error('Erreur sauvegarde profil:', error);

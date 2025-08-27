@@ -12,7 +12,7 @@
     <script type="module">
         import { auth, db } from './firebase-config.js';
         import { createUserWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
-        import { doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
+        import { doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
         // Fonction utilitaire pour afficher des messages
         function showMessage(message, type = 'success') {
@@ -41,9 +41,34 @@
         }
 
         // Redirection si déjà connecté
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
-                window.location.href = 'dashboard.html';
+                // Vérifier le profil avant de rediriger
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        
+                        const isProfileComplete = userData.profileCompleted && 
+                                                userData.firstName && 
+                                                userData.lastName && 
+                                                userData.email && 
+                                                userData.address && 
+                                                userData.transportMode && 
+                                                userData.preferences;
+                        
+                        if (isProfileComplete) {
+                            window.location.href = 'dashboard.html';
+                        } else {
+                            window.location.href = 'profile.html';
+                        }
+                    } else {
+                        window.location.href = 'profile.html';
+                    }
+                } catch (error) {
+                    console.error('Erreur vérification profil:', error);
+                    window.location.href = 'profile.html';
+                }
             }
         });
 

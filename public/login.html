@@ -41,9 +41,34 @@
         }
 
         // Redirection si déjà connecté
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
-                window.location.href = 'dashboard.html';
+                // Vérifier le profil avant de rediriger
+                try {
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    if (userDoc.exists()) {
+                        const userData = userDoc.data();
+                        
+                        const isProfileComplete = userData.profileCompleted && 
+                                                userData.firstName && 
+                                                userData.lastName && 
+                                                userData.email && 
+                                                userData.address && 
+                                                userData.transportMode && 
+                                                userData.preferences;
+                        
+                        if (isProfileComplete) {
+                            window.location.href = 'dashboard.html';
+                        } else {
+                            window.location.href = 'profile.html';
+                        }
+                    } else {
+                        window.location.href = 'profile.html';
+                    }
+                } catch (error) {
+                    console.error('Erreur vérification profil:', error);
+                    window.location.href = 'profile.html';
+                }
             }
         });
 
