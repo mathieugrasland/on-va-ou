@@ -227,6 +227,7 @@ def geocode_address(request):
         logger.debug(f"Places params (sans clé API): {dict(places_params, key='[MASQUÉ]')}")
         
         try:
+            # Essayer d'abord l'API Places
             places_response = requests.get(places_url, params=places_params, timeout=10)
             logger.debug(f"Places API status code HTTP: {places_response.status_code}")
             places_response.raise_for_status()
@@ -248,13 +249,47 @@ def geocode_address(request):
             logger.debug(f"Réponse complète Places API: {places_data}")
             
             if places_data['status'] == 'OK' and places_data['predictions']:
-            # Utiliser la première suggestion
-            place_id = places_data['predictions'][0]['place_id']
-            
-            # Maintenant, obtenir les détails du lieu avec Geocoding
+                # Utiliser la première suggestion
+                place_id = places_data['predictions'][0]['place_id']
+                
+                # Maintenant, obtenir les détails du lieu avec Geocoding
+                geocoding_params = {
+                    'place_id': place_id,
+                    'key': GOOGLE_MAPS_API_KEY
+                }
+                
+                response = requests.get(geocoding_url, params=geocoding_params, timeout=10)
+                response.raise_for_status()
+                geocoding_data = response.json()
+                
+                if geocoding_data['status'] == 'OK' and geocoding_data['results']:
+                    result = geocoding_data['results'][0]
+                    location = result['geometry']['location']
+                    
+                    # Ajouter des informations supplémentaires si disponibles
+                    additional_info = {}
+                    if 'types' in result:
+                        additional_info['type'] = result['types'][0]
+                    if 'name' in places_data['predictions'][0]:
+                        additional_info['name'] = places_data['predictions'][0]['description']
+                    
+                    return jsonify({
+                        "success": True,
+                        "location": {
+                            "lat": location['lat'],
+                            "lng": location['lng']
+                        },
+                        "formatted_address": result['formatted_address'],
+                        "additional_info": additional_info
+                    }), 200, headers
+                    
+            logger.info("Aucun résultat avec Places API, essai avec Geocoding direct")
+        
+            # Si Places ne trouve rien, essayer le géocodage direct
             geocoding_params = {
-                'place_id': place_id,
-                'key': GOOGLE_MAPS_API_KEY
+                'address': address,
+                'key': GOOGLE_MAPS_API_KEY,
+                'region': 'fr'
             }
             
             response = requests.get(geocoding_url, params=geocoding_params, timeout=10)
@@ -264,40 +299,32 @@ def geocode_address(request):
             if geocoding_data['status'] == 'OK' and geocoding_data['results']:
                 result = geocoding_data['results'][0]
                 location = result['geometry']['location']
+                logger.info(f"✅ Localisation trouvée: {location}")
+                logger.debug(f"Adresse formatée: {result['formatted_address']}")
                 
-                # Ajouter des informations supplémentaires si disponibles
-                additional_info = {}
-                if 'types' in result:
-                    additional_info['type'] = result['types'][0]
-                if 'name' in places_data['predictions'][0]:
-                    additional_info['name'] = places_data['predictions'][0]['description']
-                
-                return jsonify({
+                response_data = {
                     "success": True,
                     "location": {
                         "lat": location['lat'],
                         "lng": location['lng']
                     },
-                    "formatted_address": result['formatted_address'],
-                    "additional_info": additional_info
-                }), 200, headers
-        
-        # Si Places ne trouve rien, essayer le géocodage direct
-        geocoding_params = {
-            'address': address,
-            'key': GOOGLE_MAPS_API_KEY,
-            'region': 'fr'
-        }
-        
-        response = requests.get(geocoding_url, params=geocoding_params, timeout=10)
-        response.raise_for_status()
-        geocoding_data = response.json()
-        
-        if geocoding_data['status'] == 'OK' and geocoding_data['results']:
-            result = geocoding_data['results'][0]
-            location = result['geometry']['location']
-            logger.info(f"✅ Localisation trouvée: {location}")
-            logger.debug(f"Adresse formatée: {result['formatted_address']}")
+                    "formatted_address": result['formatted_address']
+                }
+                return jsonify(response_data), 200, headers
+            
+            logger.warning(f"❌ Géocodage direct échoué. Status: {geocoding_data['status']}")
+            return jsonify({
+                "success": False,
+                "error": "Adresse non trouvée",
+                "status": geocoding_data['status']
+            }), 404, headers
+                
+        except requests.RequestException as e:
+            logger.error(f"🌐 Erreur API Google: {str(e)}")
+            return jsonify({"error": "Erreur service de géolocalisation"}), 503, headers
+        except Exception as e:
+            logger.error(f"💥 Erreur inattendue: {str(e)}", exc_info=True)
+            return jsonify({"error": "Erreur interne du serveur"}), 500, headers
             
             response_data = {
                 "success": True,
