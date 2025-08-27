@@ -27,4 +27,4 @@ Application web de géolocalisation sociale pour organiser des sorties entre ami
 
 ---
 
-**URL** : https://on-va-ou-app.web.app/
+**URL** : https://on-va-ou-470217.web.app/

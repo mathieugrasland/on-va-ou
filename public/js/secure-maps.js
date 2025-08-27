@@ -1,11 +1,11 @@
 /**
- * Service de géocodage sécurisé utilisant les Cloud Functions
+ *        this.baseUrl = 'https://us-central1-on-va-ou-470217.cloudfunctions.net';Service de géocodage sécurisé utilisant les Cloud Functions
  * Cette approche protège la clé API en la cachant côté serveur
  */
 
 class SecureGeocodingService {
     constructor() {
-        this.baseUrl = 'https://us-central1-on-va-ou-app.cloudfunctions.net';
+        this.baseUrl = 'https://us-central1-on-va-ou-470217.cloudfunctions.net';
     }
 
     /**

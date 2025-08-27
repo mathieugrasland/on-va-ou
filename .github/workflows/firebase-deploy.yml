@@ -97,7 +97,7 @@ jobs:
 
       - name: Deploy Hosting
         run: |
-          firebase deploy --only hosting --project on-va-ou-app --non-interactive
+          firebase deploy --only hosting --project on-va-ou-470217 --non-interactive
           echo "✅ Hosting deployed successfully"
 
   # Déploiement Functions (avec géolocalisation sécurisée)
@@ -144,7 +144,7 @@ jobs:
             --source . \
             --entry-point geocode_address \
             --set-env-vars GOOGLE_MAPS_API_KEY="${GOOGLE_MAPS_API_KEY}" \
-            --project on-va-ou-app
+            --project on-va-ou-470217
           
           # Déployer les autres fonctions
           gcloud functions deploy get_user_profile \
@@ -153,7 +153,7 @@ jobs:
             --allow-unauthenticated \
             --source . \
             --entry-point get_user_profile \
-            --project on-va-ou-app
+            --project on-va-ou-470217
 
           gcloud functions deploy update_user_profile \
             --runtime python39 \
@@ -161,7 +161,7 @@ jobs:
             --allow-unauthenticated \
             --source . \
             --entry-point update_user_profile \
-            --project on-va-ou-app
+            --project on-va-ou-470217
 
           gcloud functions deploy send_friend_request \
             --runtime python39 \
@@ -169,7 +169,7 @@ jobs:
             --allow-unauthenticated \
             --source . \
             --entry-point send_friend_request \
-            --project on-va-ou-app
+            --project on-va-ou-470217
           
           echo "✅ All Cloud Functions deployed successfully"
 
@@ -200,7 +200,7 @@ jobs:
       - name: Deploy Firestore Rules Only (skip indexes for now)
         run: |
           # Déployer seulement les règles, pas les index pour éviter l'erreur 403
-          firebase deploy --only firestore:rules --project on-va-ou-app --non-interactive
+          firebase deploy --only firestore:rules --project on-va-ou-470217 --non-interactive
           echo "✅ Firestore rules deployed successfully (indexes skipped)"
 
   # Notification de succès
@@ -213,5 +213,5 @@ jobs:
       - name: Success notification
         run: |
           echo "🎉 Deployment completed successfully!"
-          echo "🌐 Your app is live at: https://on-va-ou-app.web.app"
-          echo "📊 Firebase Console: https://console.firebase.google.com/project/on-va-ou-app"
+          echo "🌐 Your app is live at: https://on-va-ou-470217.web.app"
+          echo "📊 Firebase Console: https://console.firebase.google.com/project/on-va-ou-470217"
