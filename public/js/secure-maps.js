@@ -182,11 +182,12 @@ export class SecureMapManager {
                 fillColor: '#4285F4',
                 fillOpacity: 1,
                 strokeColor: '#ffffff',
-                strokeWeight: 2
+                strokeWeight: 1,
+                labelOrigin: new google.maps.Point(0, -1)
             },
             label: {
                 text: name,            // Le prénom affiché
-                color: "#000000",      // Couleur du texte
+                color: '#4285F4',      // Couleur du texte
                 fontSize: "14px",      // Taille de la police
                 fontWeight: "bold",    // Gras
                 className: "marker-label" // (optionnel, permet de styliser en CSS)
