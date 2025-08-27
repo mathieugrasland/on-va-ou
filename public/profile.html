@@ -12,7 +12,7 @@
     <script type="module">
         import { auth, db } from './firebase-config.js';
         import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-        import { doc, getDoc, updateDoc, collection, query, where, getDocs, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+        import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
         // Fonction utilitaire pour afficher des messages
         function showMessage(message, type = 'success') {
@@ -87,12 +87,41 @@
                         await loadFriends();
                     }
                 } else {
-                    showMessage('Profil utilisateur introuvable', 'error');
-                    window.location.href = 'login.html';
+                    // Nouvel utilisateur - créer un profil par défaut
+                    console.log('Nouveau utilisateur détecté, création du profil par défaut...');
+                    
+                    userProfile = {
+                        firstName: '',
+                        lastName: '',
+                        email: currentUser.email || '',
+                        createdAt: new Date().toISOString(),
+                        profileCompleted: false,
+                        address: '',
+                        transportMode: '',
+                        preferences: '',
+                        friends: [],
+                        friendRequests: {
+                            sent: [],
+                            received: []
+                        }
+                    };
+                    
+                    try {
+                        await setDoc(doc(db, 'users', currentUser.uid), userProfile);
+                        console.log('Profil par défaut créé avec succès');
+                    } catch (error) {
+                        console.error('Erreur création profil par défaut:', error);
+                        showMessage('Erreur lors de la création du profil', 'error');
+                    }
+                    
+                    isNewUser = true;
+                    updateUI();
+                    hideLoading();
                 }
             } catch (error) {
                 console.error('Erreur chargement profil:', error);
                 showMessage('Erreur lors du chargement des données', 'error');
+                hideLoading(); // Important : arrêter le loading même en cas d'erreur
             }
         }
 

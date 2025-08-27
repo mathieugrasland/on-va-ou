@@ -104,6 +104,8 @@
                     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                     const user = userCredential.user;
                     
+                    console.log('Utilisateur créé avec succès:', user.uid);
+                    
                     // Créer le profil utilisateur dans Firestore
                     const userProfile = {
                         firstName: firstName,
@@ -123,7 +125,9 @@
                         }
                     };
                     
+                    console.log('Tentative de création du profil Firestore...');
                     await setDoc(doc(db, 'users', user.uid), userProfile);
+                    console.log('Profil Firestore créé avec succès');
                     
                     // Succès - redirection vers la page profil
                     showMessage('Inscription réussie ! Complétez maintenant votre profil');
