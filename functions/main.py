@@ -235,7 +235,7 @@ def geocode_address(request):
             logger.info(f"Places API status: {places_data.get('status')}")
             
             if places_data['status'] == 'REQUEST_DENIED':
-                logger.error(f"Places API a refusé la requête. Message: {places_data.get('error_message', 'Pas de message d\'erreur')}")
+                logger.error(f"Places API a refusé la requête. Message: {places_data.get('error_message', 'Pas de message d erreur')}")
                 logger.error("Vérifiez que : 1) La clé API est correcte, 2) Places API est activée, 3) La facturation est activée")
                 raise Exception(f"Places API REQUEST_DENIED: {places_data.get('error_message')}")
             
