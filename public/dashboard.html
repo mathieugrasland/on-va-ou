@@ -73,8 +73,8 @@
         // Charger le tableau de bord
         async function loadDashboard() {
             try {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('dashboard-content').style.display = 'block';
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('dashboard-content').classList.remove('hidden');
                 
                 // Charger la liste des amis (à implémenter)
                 await loadFriends();
@@ -220,47 +220,45 @@
     <div class="container">
         
         <!-- Indicateur de chargement -->
-        <div id="loading" style="text-align: center; padding: 50px;">
+        <div id="loading" class="loading">
             <h2>Chargement...</h2>
-            <div style="margin: 20px 0; font-size: 24px;">⏳</div>
+            <div class="loading-spinner">⏳</div>
         </div>
 
         <!-- Contenu du dashboard -->
-        <div id="dashboard-content" style="display: none;">
-            <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid var(--input-border);">
+        <div id="dashboard-content" class="dashboard-content hidden">
+            <header class="dashboard-header">
                 <div>
                     <h1>Dashboard</h1>
                     <p>Bienvenue <strong id="user-name">...</strong></p>
-                    <p style="color: var(--dark-text); opacity: 0.7;" id="user-email">...</p>
+                    <p id="user-email" style="color: var(--dark-text); opacity: 0.7;">...</p>
                 </div>
-                <button id="logout-btn" style="background: var(--primary-color); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
-                    Déconnexion
-                </button>
+                <button id="logout-btn">Déconnexion</button>
             </header>
 
             <!-- Section localisation -->
-            <section style="margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+            <section class="dashboard-section">
                 <h3>📍 Ma localisation</h3>
                 <p>Pour trouver les meilleurs bars, nous avons besoin de votre position actuelle.</p>
-                <button id="get-location-btn" style="background: var(--accent-color); color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; margin: 10px 0;">
+                <button id="get-location-btn" class="button-secondary">
                     Obtenir ma position
                 </button>
-                <div id="location-status" style="margin-top: 10px; font-style: italic; color: var(--dark-text);"></div>
+                <div id="location-status" class="location-status"></div>
             </section>
 
             <!-- Section amis -->
-            <section style="margin-bottom: 30px;">
+            <section class="dashboard-section">
                 <h3>👥 Mes amis</h3>
-                <div id="friends-list" style="margin-top: 15px;">
+                <div id="friends-list">
                     <!-- Les amis seront chargés ici -->
                 </div>
             </section>
 
             <!-- Section recherche de bars -->
-            <section style="margin-bottom: 30px; padding: 20px; background: #e8f5e8; border-radius: 10px;">
+            <section class="dashboard-section" style="background: #e8f5e8;">
                 <h3>🍺 Trouver un bar</h3>
                 <p>Fonctionnalité complète bientôt disponible !</p>
-                <p style="margin-top: 10px; font-style: italic;">
+                <p class="mt-1" style="font-style: italic;">
                     Vous pourrez bientôt ajouter des amis, voir leurs positions, et trouver le bar parfait au centre de votre groupe.
                 </p>
             </section>
