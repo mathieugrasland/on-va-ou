@@ -729,3 +729,196 @@ a:hover {
         justify-content: center;
     }
 }
+
+/* ========================================
+   📍 STYLES POUR LA CARTE ET GÉOLOCALISATION
+   ======================================== */
+
+.map-container {
+    display: flex;
+    gap: 20px;
+    height: 600px;
+    background: var(--light-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-light);
+}
+
+.friends-panel {
+    width: 300px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-right: 1px solid var(--input-border);
+    overflow-y: auto;
+}
+
+.friends-panel h4 {
+    margin: 0 0 15px 0;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.friends-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.friend-item {
+    background: var(--light-bg);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all var(--transition-speed);
+}
+
+.friend-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+}
+
+.friend-item.my-location {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: white;
+}
+
+.friend-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.friend-checkbox input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.checkmark {
+    width: 18px;
+    height: 18px;
+    background: var(--light-bg);
+    border: 2px solid var(--input-border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-speed);
+}
+
+.friend-checkbox input:checked + .checkmark {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.friend-checkbox input:checked + .checkmark::after {
+    content: '✓';
+    color: white;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+.my-location .checkmark {
+    border-color: rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.1);
+}
+
+.my-location .friend-checkbox input:checked + .checkmark {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.5);
+}
+
+.friend-name {
+    font-weight: 500;
+    flex: 1;
+}
+
+.friend-address {
+    font-size: 0.85em;
+    opacity: 0.7;
+    margin-top: 4px;
+    display: block;
+}
+
+.map-wrapper {
+    flex: 1;
+    position: relative;
+}
+
+.map {
+    width: 100%;
+    height: 100%;
+    border-radius: 0 12px 12px 0;
+}
+
+.map-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--light-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.map-loading .loading-spinner {
+    font-size: 3em;
+    animation: spin 2s linear infinite;
+}
+
+/* Styles pour les marqueurs personnalisés Google Maps */
+.marker-popup {
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    padding: 8px;
+}
+
+.marker-popup strong {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+/* Responsivité pour la carte */
+@media (max-width: 768px) {
+    .map-container {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    .friends-panel {
+        width: 100%;
+        max-height: 200px;
+        border-right: none;
+        border-bottom: 1px solid var(--input-border);
+    }
+    
+    .map-wrapper {
+        height: 400px;
+    }
+    
+    .map {
+        border-radius: 0 0 12px 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .map-container {
+        margin: 0 -20px;
+        border-radius: 0;
+    }
+    
+    .friends-panel {
+        border-radius: 0;
+    }
+    
+    .map {
+        border-radius: 0;
+    }
+}

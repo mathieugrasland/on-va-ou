@@ -11,11 +11,15 @@
     <!-- Firebase App (the core Firebase SDK) -->
     <script type="module">
         import { auth, db } from './firebase-config.js';
+        import { loadGoogleMapsAPI } from './google-maps-config.js';
         import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
         import { doc, getDoc, setDoc, collection, query, where, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
         let currentUser = null;
         let userProfile = null;
+        let map = null;
+        let userMarkers = new Map(); // Stockage des marqueurs par uid
+        let friendsData = []; // Données des amis avec géolocalisation
 
         // Vérifier l'authentification
         onAuthStateChanged(auth, async (user) => {
@@ -83,9 +87,221 @@
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('dashboard-content').classList.remove('hidden');
                 
+                // Charger Google Maps API et initialiser la carte
+                await loadGoogleMapsAPI();
+                await initializeMap();
+                await loadFriendsOnMap();
+                
             } catch (error) {
                 console.error('Erreur chargement dashboard:', error);
-                showError('Erreur lors du chargement du tableau de bord');
+                showMessage('Erreur lors du chargement du tableau de bord', 'error');
+            }
+        }
+
+        // Initialiser la carte Google Maps
+        async function initializeMap() {
+            try {
+                // Position par défaut (Paris)
+                const defaultPosition = { lat: 48.8566, lng: 2.3522 };
+                
+                // Initialiser la carte Google Maps
+                map = new google.maps.Map(document.getElementById('map'), {
+                    center: defaultPosition,
+                    zoom: 12,
+                    mapTypeId: 'roadmap',
+                    styles: [
+                        {
+                            featureType: 'poi.business',
+                            elementType: 'labels',
+                            stylers: [{ visibility: 'off' }]
+                        }
+                    ],
+                    mapTypeControl: true,
+                    streetViewControl: true,
+                    fullscreenControl: true
+                });
+                
+                // Masquer le loader de la carte
+                document.getElementById('map-loading').style.display = 'none';
+                
+                console.log('✅ Carte Google Maps initialisée');
+                
+                // Géolocaliser l'utilisateur actuel
+                await geocodeAndAddUser(userProfile, currentUser.uid, true);
+                
+            } catch (error) {
+                console.error('Erreur initialisation carte:', error);
+                showMessage('Erreur lors de l\'initialisation de la carte', 'error');
+            }
+        }
+
+        // Charger les amis et les afficher sur la carte
+        async function loadFriendsOnMap() {
+            try {
+                // Attendre que la carte soit initialisée
+                if (!map) {
+                    console.log('En attente de l\'initialisation de la carte...');
+                    return;
+                }
+                
+                if (!userProfile.friends || userProfile.friends.length === 0) {
+                    console.log('Aucun ami à afficher');
+                    return;
+                }
+
+                console.log('Chargement des amis:', userProfile.friends);
+                
+                // Charger les données de chaque ami
+                for (const friendUid of userProfile.friends) {
+                    try {
+                        const friendDoc = await getDoc(doc(db, 'users', friendUid));
+                        if (friendDoc.exists()) {
+                            const friendData = friendDoc.data();
+                            await geocodeAndAddUser(friendData, friendUid, false);
+                            await addFriendToPanel(friendData, friendUid);
+                        }
+                    } catch (error) {
+                        console.error(`Erreur chargement ami ${friendUid}:`, error);
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Erreur chargement amis:', error);
+            }
+        }
+
+        // Géocoder une adresse et ajouter l'utilisateur sur la carte
+        async function geocodeAndAddUser(userData, uid, isCurrentUser = false) {
+            try {
+                if (!userData.address) {
+                    console.log('Pas d\'adresse pour:', userData.firstName);
+                    return;
+                }
+
+                console.log(`Géocodage de ${userData.firstName}: ${userData.address}`);
+                
+                // Utiliser le service de géocodage Google Maps avec Promise
+                const geocoder = new google.maps.Geocoder();
+                
+                return new Promise((resolve, reject) => {
+                    geocoder.geocode({ address: userData.address }, (results, status) => {
+                        if (status === 'OK' && results[0]) {
+                            const location = results[0].geometry.location;
+                            const lat = location.lat();
+                            const lng = location.lng();
+                            
+                            // Créer l'icône personnalisée
+                            const icon = {
+                                url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+                                    <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="20" cy="20" r="18" fill="${isCurrentUser ? '#5d4037' : '#42a5f5'}" stroke="white" stroke-width="2"/>
+                                        <text x="20" y="26" text-anchor="middle" fill="white" font-size="16">${isCurrentUser ? '🏠' : '👤'}</text>
+                                    </svg>
+                                `)}`,
+                                scaledSize: new google.maps.Size(40, 40),
+                                anchor: new google.maps.Point(20, 20)
+                            };
+                            
+                            // Créer le marqueur
+                            const marker = new google.maps.Marker({
+                                position: { lat, lng },
+                                map: map,
+                                icon: icon,
+                                title: `${userData.firstName} ${userData.lastName}`,
+                                animation: google.maps.Animation.DROP
+                            });
+                            
+                            // Créer l'InfoWindow (popup)
+                            const infoWindow = new google.maps.InfoWindow({
+                                content: `
+                                    <div class="marker-popup">
+                                        <strong>${userData.firstName} ${userData.lastName}</strong><br>
+                                        📍 ${userData.address}<br>
+                                        🚗 ${userData.transportMode || 'Non spécifié'}
+                                    </div>
+                                `
+                            });
+                            
+                            // Ajouter l'événement click sur le marqueur
+                            marker.addListener('click', () => {
+                                // Fermer toutes les autres InfoWindows
+                                userMarkers.forEach((markerData) => {
+                                    if (markerData.infoWindow) {
+                                        markerData.infoWindow.close();
+                                    }
+                                });
+                                infoWindow.open(map, marker);
+                            });
+                            
+                            // Stocker le marqueur avec son InfoWindow
+                            userMarkers.set(uid, { marker, infoWindow });
+                            
+                            // Si c'est l'utilisateur actuel, centrer la carte
+                            if (isCurrentUser) {
+                                map.setCenter({ lat, lng });
+                                map.setZoom(14);
+                                document.getElementById('my-address').textContent = userData.address;
+                            }
+                            
+                            console.log(`✅ ${userData.firstName} ajouté sur la carte`);
+                            resolve();
+                            
+                        } else {
+                            console.log(`❌ Adresse non trouvée pour ${userData.firstName}: ${userData.address}`);
+                            console.log('Status:', status);
+                            resolve(); // On résout quand même pour ne pas bloquer
+                        }
+                    });
+                });
+                
+            } catch (error) {
+                console.error(`Erreur géocodage pour ${userData.firstName}:`, error);
+            }
+        }
+
+        // Ajouter un ami au panel de sélection
+        async function addFriendToPanel(friendData, friendUid) {
+            const friendsList = document.getElementById('friends-list');
+            const friendElement = document.createElement('div');
+            friendElement.className = 'friend-item';
+            friendElement.innerHTML = `
+                <label class="friend-checkbox">
+                    <input type="checkbox" id="friend-${friendUid}" checked onchange="toggleFriendMarker('${friendUid}')">
+                    <span class="checkmark"></span>
+                    <span class="friend-name">👤 ${friendData.firstName} ${friendData.lastName}</span>
+                    <span class="friend-address">${friendData.address || 'Adresse non spécifiée'}</span>
+                </label>
+            `;
+            friendsList.appendChild(friendElement);
+        }
+
+        // Afficher/masquer un marqueur d'ami
+        function toggleFriendMarker(friendUid) {
+            const checkbox = document.getElementById(`friend-${friendUid}`);
+            const markerData = userMarkers.get(friendUid);
+            
+            if (markerData) {
+                if (checkbox.checked) {
+                    markerData.marker.setMap(map);
+                } else {
+                    markerData.marker.setMap(null);
+                    markerData.infoWindow.close();
+                }
+            }
+        }
+
+        // Afficher/masquer sa propre position
+        function toggleMyLocation() {
+            const checkbox = document.getElementById('show-my-location');
+            const markerData = userMarkers.get(currentUser.uid);
+            
+            if (markerData) {
+                if (checkbox.checked) {
+                    markerData.marker.setMap(map);
+                } else {
+                    markerData.marker.setMap(null);
+                    markerData.infoWindow.close();
+                }
             }
         }
 
@@ -141,16 +357,28 @@
                     window.location.href = 'profile.html';
                 });
             }
+
+            // Checkbox pour ma position
+            const myLocationCheckbox = document.getElementById('show-my-location');
+            if (myLocationCheckbox) {
+                myLocationCheckbox.addEventListener('change', toggleMyLocation);
+            }
         });
 
-        // Exposer les fonctions pour le débogage
+        // Exposer les fonctions pour le débogage et les événements
         window.dashboardDebug = {
             auth,
             db,
             currentUser,
             userProfile,
-            loadUserProfile
+            loadUserProfile,
+            map,
+            userMarkers
         };
+        
+        // Exposer les fonctions pour les événements onclick
+        window.toggleFriendMarker = toggleFriendMarker;
+        window.toggleMyLocation = toggleMyLocation;
     </script>
 </head>
 <body>
@@ -181,11 +409,35 @@
 
             <!-- Section recherche de bars -->
             <section class="dashboard-section highlight">
-                <h3>🍺 Trouver un bar</h3>
-                <p>Fonctionnalité complète bientôt disponible !</p>
-                <p class="mt-1 text-italic">
-                    Vous pourrez bientôt ajouter des amis, voir leurs positions, et trouver le bar parfait au centre de votre groupe.
-                </p>
+                <h3>🗺️ Carte des amis</h3>
+                <div class="map-container">
+                    <!-- Panel de sélection des amis -->
+                    <div class="friends-panel">
+                        <h4>👥 Mes amis</h4>
+                        <div class="friends-selection">
+                            <div class="friend-item my-location">
+                                <label class="friend-checkbox">
+                                    <input type="checkbox" id="show-my-location" checked>
+                                    <span class="checkmark"></span>
+                                    <span class="friend-name">🏠 Ma position</span>
+                                    <span class="friend-address" id="my-address">Chargement...</span>
+                                </label>
+                            </div>
+                            <div id="friends-list">
+                                <!-- Les amis seront ajoutés ici dynamiquement -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Carte -->
+                    <div class="map-wrapper">
+                        <div id="map" class="map"></div>
+                        <div class="map-loading" id="map-loading">
+                            <div class="loading-spinner">🗺️</div>
+                            <p>Chargement de la carte...</p>
+                        </div>
+                    </div>
+                </div>
             </section>
         </div>
     </div>

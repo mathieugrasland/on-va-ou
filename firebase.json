@@ -13,7 +13,7 @@
         "*.pyc",
         ".pytest_cache"
       ],
-      "runtime": "python312"
+      "runtime": "python39"
     }
   ],
   "hosting": {
@@ -32,6 +32,10 @@
       {
         "source": "/api/profile/update", 
         "function": "update_user_profile"
+      },
+      {
+        "source": "/api/geocode",
+        "function": "geocode_address"
       }
     ],
     "headers": [

@@ -13,23 +13,20 @@
   ],
   "author": "On va où ? Team",
   "license": "MIT",
-  "homepage": "https://on-va-ou.web.app",
+  "homepage": "https://on-va-ou-app.web.app",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/on-va-ou.git"
+    "url": "https://github.com/mathieugrasland/on-va-ou.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/on-va-ou/issues"
+    "url": "https://github.com/mathieugrasland/on-va-ou/issues"
   },
   "scripts": {
     "dev": "firebase serve",
-    "build": "node scripts/build.js",
     "deploy": "firebase deploy",
     "deploy:hosting": "firebase deploy --only hosting",
     "deploy:functions": "firebase deploy --only functions",
-    "test": "echo \"Tests à implémenter\" && exit 0",
-    "lint": "echo \"Linting à implémenter\" && exit 0",
-    "clean": "rimraf dist",
+    "deploy:rules": "firebase deploy --only firestore:rules",
     "serve:dist": "firebase serve --only hosting",
     "logs": "firebase functions:log"
   },
@@ -46,7 +43,7 @@
   ],
   "firebase": {
     "projects": {
-      "default": "on-va-ou-prod"
+      "default": "on-va-ou-app"
     }
   }
 }

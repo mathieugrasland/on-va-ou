@@ -3,16 +3,14 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebas
 import { getAuth } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js';
 import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js';
 
-// ATTENTION: Ces clés doivent être sécurisées en production
-// Utiliser des variables d'environnement ou Firebase Hosting
+// Configuration Firebase (clés publiques sécurisées par domaine)
 const firebaseConfig = {
-    apiKey: "AIzaSyBs1O6cYYxNLE2vB9gEcmhEhONrditDyCo",
-    authDomain: "on-va-ou-470217.firebaseapp.com",
-    projectId: "on-va-ou-470217",
-    storageBucket: "on-va-ou-470217.firebasestorage.app",
-    messagingSenderId: "687464295451",
-    appId: "1:687464295451:web:b228ea2a0ddc668e5f1cbe",
-    measurementId: "G-2PCHXTT6DW"
+    apiKey: "AIzaSyBUNmeroMLlCNzrpCi7-6VCGBGfJ4Eg4MQ",
+    authDomain: "on-va-ou-app.firebaseapp.com",
+    projectId: "on-va-ou-app",
+    storageBucket: "on-va-ou-app.firebasestorage.app",
+    messagingSenderId: "565550488662",
+    appId: "1:565550488662:web:8e5c6cdca70c7c81bfab31"
 };
 
 export const app = initializeApp(firebaseConfig);
