@@ -370,18 +370,39 @@
                 }
 
                 // Envoyer la demande d'amitié (Transaction pour cohérence)
+                console.log('Envoi demande d\'amitié à:', targetUid);
+                
                 try {
+                    // Étape 1: Ajouter à mes demandes envoyées
+                    console.log('Étape 1: Ajout à mes demandes envoyées...');
                     await updateDoc(doc(db, 'users', currentUser.uid), {
                         'friendRequests.sent': arrayUnion(targetUid)
                     });
+                    console.log('✅ Étape 1 réussie');
 
+                    // Étape 2: Ajouter à ses demandes reçues
+                    console.log('Étape 2: Ajout à ses demandes reçues...');
                     await updateDoc(doc(db, 'users', targetUid), {
                         'friendRequests.received': arrayUnion(currentUser.uid)
                     });
+                    console.log('✅ Étape 2 réussie');
+                    
                 } catch (transactionError) {
                     // En cas d'échec partiel, essayer de nettoyer
-                    console.error('Erreur transaction amitié:', transactionError);
-                    throw new Error('Erreur lors de l\'envoi de la demande');
+                    console.error('❌ Erreur transaction amitié:', transactionError);
+                    console.error('Détails erreur:', transactionError.code, transactionError.message);
+                    
+                    // Tenter de nettoyer la première opération si la seconde échoue
+                    try {
+                        await updateDoc(doc(db, 'users', currentUser.uid), {
+                            'friendRequests.sent': arrayRemove(targetUid)
+                        });
+                        console.log('🧹 Nettoyage effectué');
+                    } catch (cleanupError) {
+                        console.error('Erreur lors du nettoyage:', cleanupError);
+                    }
+                    
+                    throw transactionError;
                 }
 
                 // Mettre à jour le profil local
