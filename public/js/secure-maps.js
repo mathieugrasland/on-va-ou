@@ -208,12 +208,12 @@ export class SecureMapManager {
                 fillColor: color,
                 fillOpacity: 1,
                 strokeColor: '#ffffff',
-                strokeWeight: 2,
-                labelOrigin: new google.maps.Point(0, -15)
+                strokeWeight: 1,
+                labelOrigin: new google.maps.Point(0, -1)
             },
             label: {
                 text: name,
-                color: "#000000",
+                color: color,
                 fontSize: "12px",
                 fontWeight: "bold",
                 className: "marker-label"
