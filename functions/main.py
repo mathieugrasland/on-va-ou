@@ -4,6 +4,10 @@ from firebase_admin import credentials, auth, firestore
 from flask import jsonify
 import os
 
+# 🚀 Cloud Functions pour "On va où ?" - Version 1.0.0
+# Dernière modification: 2025-08-27
+# TODO: Ajouter functions pour géolocalisation et recommandations de bars
+
 # Initialisation optimisée de Firebase
 if not firebase_admin._apps:
     # Utilise les variables d'environnement en production

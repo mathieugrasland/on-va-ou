@@ -1,4 +1,8 @@
 rules_version = '2';
+// 🔐 Firestore Security Rules - Version 1.0.0
+// Dernière modification: 2025-08-27
+// TODO: Ajouter règles pour les groupes d'amis et recommandations de bars
+
 service cloud.firestore {
   match /databases/{database}/documents {
     // Règles pour la collection users

@@ -1,0 +1,13 @@
+# ⚡ Functions Deployment Trigger
+#
+# Ce fichier déclenche le déploiement des Cloud Functions quand il est modifié.
+# Modifiez ce commentaire pour forcer un redéploiement des functions.
+#
+# Version: 1.0.0
+# Dernière modification: 2025-08-27
+#
+# TODO: Améliorations futures des functions
+# - [ ] Cache Redis pour les requêtes fréquentes
+# - [ ] Optimisation cold start
+# - [ ] Monitoring avancé
+# - [ ] Rate limiting par utilisateur
