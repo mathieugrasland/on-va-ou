@@ -61,12 +61,19 @@
                 if (userDoc.exists()) {
                     userProfile = userDoc.data();
                     
-                    // Vérifier si c'est un nouveau utilisateur
-                    isNewUser = !userProfile.address && !userProfile.transportMode && !userProfile.preferences;
+                    // Vérifier et réparer la structure du profil
+                    const needsRepair = await checkAndRepairProfile();
+                    
+                    // Vérifier si c'est un nouveau utilisateur ou un profil incomplet
+                    isNewUser = needsRepair || !userProfile.address || !userProfile.transportMode || !userProfile.preferences || !userProfile.firstName || !userProfile.lastName;
                     
                     updateUI();
                     hideLoading();
-                    await loadFriends(); // Charger les amis après le profil
+                    
+                    // Charger les amis seulement si le profil est structurellement valide
+                    if (!needsRepair) {
+                        await loadFriends();
+                    }
                 } else {
                     showMessage('Profil utilisateur introuvable', 'error');
                     window.location.href = 'login.html';
@@ -75,6 +82,73 @@
                 console.error('Erreur chargement profil:', error);
                 showMessage('Erreur lors du chargement des données', 'error');
             }
+        }
+
+        // Vérifier et réparer la structure du profil
+        async function checkAndRepairProfile() {
+            let needsUpdate = false;
+            let updates = {};
+            
+            // Vérifier les champs obligatoires manquants
+            if (!userProfile.friends) {
+                updates.friends = [];
+                needsUpdate = true;
+            }
+            
+            if (!userProfile.friendRequests) {
+                updates.friendRequests = { sent: [], received: [] };
+                needsUpdate = true;
+            }
+            
+            if (!userProfile.firstName) {
+                updates.firstName = '';
+                needsUpdate = true;
+            }
+            
+            if (!userProfile.lastName) {
+                updates.lastName = '';
+                needsUpdate = true;
+            }
+            
+            if (!userProfile.email) {
+                updates.email = currentUser.email || '';
+                needsUpdate = true;
+            }
+            
+            if (!userProfile.address) {
+                updates.address = '';
+                needsUpdate = true;
+            }
+            
+            if (!userProfile.transportMode) {
+                updates.transportMode = '';
+                needsUpdate = true;
+            }
+            
+            if (!userProfile.preferences) {
+                updates.preferences = '';
+                needsUpdate = true;
+            }
+            
+            // Forcer la revalidation du profil
+            if (needsUpdate || !userProfile.profileCompleted) {
+                updates.profileCompleted = false;
+                needsUpdate = true;
+            }
+            
+            // Appliquer les mises à jour si nécessaire
+            if (needsUpdate) {
+                try {
+                    await updateDoc(doc(db, 'users', currentUser.uid), updates);
+                    // Mettre à jour le profil local
+                    userProfile = { ...userProfile, ...updates };
+                    console.log('Profil réparé automatiquement');
+                } catch (error) {
+                    console.error('Erreur réparation profil:', error);
+                }
+            }
+            
+            return needsUpdate;
         }
 
         // Mettre à jour l'interface
@@ -97,6 +171,9 @@
             }
 
             // Remplir les champs
+            document.getElementById('profile-firstName').value = userProfile.firstName || '';
+            document.getElementById('profile-lastName').value = userProfile.lastName || '';
+            document.getElementById('profile-email').value = userProfile.email || '';
             document.getElementById('profile-address').value = userProfile.address || '';
             document.getElementById('profile-transport').value = userProfile.transportMode || '';
             document.getElementById('profile-preferences').value = userProfile.preferences || '';
@@ -112,9 +189,13 @@
 
         // Vérifier si le profil est complet
         function isProfileComplete() {
-            return userProfile.address && 
+            return userProfile.firstName && 
+                   userProfile.lastName && 
+                   userProfile.email && 
+                   userProfile.address && 
                    userProfile.transportMode && 
-                   userProfile.preferences;
+                   userProfile.preferences &&
+                   userProfile.profileCompleted;
         }
 
         // Charger la liste des amis et demandes
@@ -387,16 +468,27 @@
                 // Récupérer les données du formulaire
                 const formData = new FormData(event.target);
                 const profileData = {
-                    address: formData.get('address'),
+                    firstName: formData.get('firstName')?.trim(),
+                    lastName: formData.get('lastName')?.trim(),
+                    email: formData.get('email')?.trim(),
+                    address: formData.get('address')?.trim(),
                     transportMode: formData.get('transportMode'),
-                    preferences: formData.get('preferences'),
+                    preferences: formData.get('preferences')?.trim(),
                     profileCompleted: true,
                     lastUpdated: new Date().toISOString()
                 };
 
                 // Validation côté client
-                if (!profileData.address || !profileData.transportMode || !profileData.preferences) {
+                if (!profileData.firstName || !profileData.lastName || !profileData.email || 
+                    !profileData.address || !profileData.transportMode || !profileData.preferences) {
                     showMessage('Veuillez remplir tous les champs obligatoires', 'error');
+                    return;
+                }
+
+                // Validation email
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(profileData.email)) {
+                    showMessage('Veuillez saisir une adresse email valide', 'error');
                     return;
                 }
 
@@ -510,6 +602,27 @@
 
             <!-- Formulaire de profil -->
             <form id="profile-form" class="profile-form">
+                <!-- Informations personnelles -->
+                <section class="form-section">
+                    <h3>👤 Informations personnelles</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="profile-firstName">Prénom *</label>
+                            <input type="text" id="profile-firstName" name="firstName" placeholder="Votre prénom" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="profile-lastName">Nom *</label>
+                            <input type="text" id="profile-lastName" name="lastName" placeholder="Votre nom" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="profile-email">Adresse e-mail *</label>
+                        <input type="email" id="profile-email" name="email" placeholder="votre@email.com" required>
+                    </div>
+                </section>
+
                 <!-- Informations de localisation -->
                 <section class="form-section">
                     <h3>📍 Localisation</h3>
