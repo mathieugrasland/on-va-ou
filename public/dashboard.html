@@ -216,11 +216,27 @@
 
     <!-- Google Maps avec clé publique restreinte -->
     <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBUNmeroMLlCNzrpCi7-6VCGBGfJ4Eg4MQ&callback=initSecureMap&loading=async">
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBUNmeroMLlCNzrpCi7-6VCGBGfJ4Eg4MQ&callback=initGoogleMaps&loading=async">
     </script>
 
     <!-- Service de géocodage sécurisé -->
     <script src="js/secure-maps.js"></script>
+
+    <!-- Fonction globale pour Google Maps callback -->
+    <script>
+        // Fonction globale accessible par Google Maps API
+        function initGoogleMaps() {
+            console.log('Google Maps API chargée');
+            // Déclencher un événement personnalisé que le module pourra écouter
+            window.dispatchEvent(new CustomEvent('googleMapsLoaded'));
+        }
+        
+        // Gestion d'erreur globale pour Google Maps
+        window.gm_authFailure = function() {
+            console.error('Erreur authentification Google Maps');
+            showMessage('Erreur de chargement de la carte (clé API)', 'error');
+        };
+    </script>
 
     <script type="module">
         import { auth, db } from './firebase-config.js';
@@ -230,29 +246,51 @@
         let friendsVisible = true;
         let currentUser = null;
 
-        // Fonction de callback pour Google Maps
+        // Écouter l'événement de chargement Google Maps
+        window.addEventListener('googleMapsLoaded', initSecureMap);
+
+        // Fonction d'initialisation de la carte sécurisée
         function initSecureMap() {
-            console.log('Google Maps API chargée, initialisation du gestionnaire sécurisé...');
+            console.log('Initialisation du gestionnaire de carte sécurisé...');
             
             secureMapManager = new SecureMapManager('map-container');
             
             // Initialiser la carte une fois l'utilisateur connecté
-            onAuthStateChanged(auth, async (user) => {
-                if (user && secureMapManager && !secureMapManager.isInitialized) {
-                    try {
-                        await secureMapManager.initializeMap();
-                        await secureMapManager.loadFriendsLocations();
-                        
-                        // Activer les contrôles de la carte
-                        setupMapControls();
-                        
-                    } catch (error) {
-                        console.error('Erreur initialisation carte:', error);
-                        showMessage('Erreur lors du chargement de la carte', 'error');
-                    }
-                }
-            });
+            if (currentUser && secureMapManager && !secureMapManager.isInitialized) {
+                initializeMapForUser();
+            }
         }
+
+        // Initialiser la carte pour l'utilisateur connecté
+        async function initializeMapForUser() {
+            try {
+                await secureMapManager.initializeMap();
+                await secureMapManager.loadFriendsLocations();
+                
+                // Activer les contrôles de la carte
+                setupMapControls();
+                
+            } catch (error) {
+                console.error('Erreur initialisation carte:', error);
+                showMessage('Erreur lors du chargement de la carte', 'error');
+            }
+        }
+
+        // Gestion de l'authentification
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                await loadUserProfile();
+                await loadFriendsList();
+                
+                // Si Google Maps est déjà chargé, initialiser la carte
+                if (secureMapManager && !secureMapManager.isInitialized) {
+                    await initializeMapForUser();
+                }
+            } else {
+                window.location.href = 'login.html';
+            }
+        });
 
         // Configuration des contrôles de la carte
         function setupMapControls() {
@@ -441,12 +479,6 @@
                 showMessage('Erreur de connexion', 'error');
             }
         }
-
-        // Gestion d'erreur globale pour Google Maps
-        window.gm_authFailure = function() {
-            console.error('Erreur authentification Google Maps');
-            showMessage('Erreur de chargement de la carte (clé API)', 'error');
-        };
     </script>
 </body>
 </html>
