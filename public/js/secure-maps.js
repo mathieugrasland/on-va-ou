@@ -1,5 +1,7 @@
 // Import des fonctions Firestore v9+
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+// Import de la configuration des couleurs
+import { FRIEND_COLORS, getFriendColorById } from './color-config.js';
 
 class SecureGeocodingService {
     constructor(auth = null) {
@@ -69,18 +71,7 @@ export class SecureMapManager {
         this.isInitialized = false;
         this.auth = auth;
         this.db = db;
-        this.friendColors = [
-            '#FF5733', // Orange
-            '#33FF57', // Vert clair
-            '#3357FF', // Bleu
-            '#FF33F5', // Rose
-            '#33FFF5', // Cyan
-            '#F5FF33', // Jaune
-            '#9933FF', // Violet
-            '#FF3333', // Rouge
-            '#33FFB5', // Turquoise
-            '#FFB533'  // Orange clair
-        ];
+        this.friendColors = FRIEND_COLORS;
     }
 
     async initializeMap() {
