@@ -115,17 +115,17 @@ export class BarFinder {
             }
             
             const radiusKm = (searchRadius / 1000).toFixed(1);
-            statusEl.textContent = `Calcul du point optimal et recherche de bars (${radiusKm}km)...`;
+            statusEl.textContent = `Recherche de bars candidats et calcul des temps de trajet (zone ${radiusKm}km)...`;
             
             // Appeler la Cloud Function pour trouver les bars
             const bars = await this.callFindBarsCloudFunction(positions, searchRadius);
             
             if (bars && bars.length > 0) {
-                statusEl.textContent = `${bars.length} bar(s) bien noté(s) trouvé(s) !`;
+                statusEl.textContent = `${bars.length} bar(s) optimal(s) trouvé(s) selon les temps de trajet !`;
                 this.displayBars(bars);
                 await this.showBarsOnMap(bars);
             } else {
-                throw new Error('Aucun bar bien noté trouvé dans un rayon de 600m');
+                throw new Error('Aucun bar accessible trouvé avec des temps de trajet équilibrés');
             }
             
         } catch (error) {
@@ -410,6 +410,18 @@ export class BarFinder {
         
         const avgTime = Math.round(bar.avg_travel_time);
         const rating = bar.rating ? bar.rating.toFixed(1) : 'N/A';
+        const timeSpread = Math.round(bar.time_spread || 0);
+        
+        // Créer un indicateur de déséquilibre
+        let balanceIndicator = '';
+        const balanceScore = bar.time_balance_score || 0;
+        if (balanceScore <= 0.2) {
+            balanceIndicator = '<span class="balance-good">⚖️ Équilibré</span>';
+        } else if (balanceScore <= 0.5) {
+            balanceIndicator = '<span class="balance-ok">⚖️ Correct</span>';
+        } else {
+            balanceIndicator = '<span class="balance-poor">⚖️ Déséquilibré</span>';
+        }
         
         card.innerHTML = `
             <div class="bar-name">${bar.name}</div>
@@ -417,6 +429,10 @@ export class BarFinder {
             <div class="bar-info">
                 <span class="bar-rating">⭐ ${rating}</span>
                 <span class="bar-distance">⏱️ ~${avgTime} min (moyenne)</span>
+            </div>
+            <div class="bar-time-info">
+                <span class="time-spread">📊 Écart: ${timeSpread} min</span>
+                ${balanceIndicator}
             </div>
             <div class="bar-details hidden" id="bar-details-${index}">
                 <div class="travel-times">

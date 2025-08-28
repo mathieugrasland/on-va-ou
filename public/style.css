@@ -1004,6 +1004,51 @@ a:hover {
     color: var(--primary-color);
 }
 
+/* Informations sur les temps de trajet */
+.bar-time-info {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.time-spread {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: rgba(255, 183, 77, 0.1);
+    color: #ff8f00;
+}
+
+/* Indicateurs de déséquilibre */
+.balance-good {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: rgba(76, 175, 80, 0.1);
+    color: #4caf50;
+}
+
+.balance-ok {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: rgba(255, 193, 7, 0.1);
+    color: #ff9800;
+}
+
+.balance-poor {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: rgba(244, 67, 54, 0.1);
+    color: #f44336;
+}
+
 /* Actions des bars */
 .bar-actions {
     display: flex;
