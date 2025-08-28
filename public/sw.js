@@ -70,6 +70,8 @@ self.addEventListener('fetch', (event) => {
     // Ignorer les requêtes problématiques
     if (url.protocol === 'chrome-extension:' || 
         url.protocol === 'moz-extension:' ||
+        event.request.url.includes('chrome-extension') ||
+        event.request.url.includes('moz-extension') ||
         event.request.method !== 'GET' ||
         url.pathname.includes('api/') ||
         url.pathname.includes('__/') ||
@@ -83,7 +85,9 @@ self.addEventListener('fetch', (event) => {
             fetch(event.request)
                 .then((response) => {
                     // Seulement mettre en cache les réponses valides
-                    if (response.status === 200 && response.type === 'basic') {
+                    if (response.status === 200 && response.type === 'basic' && 
+                        event.request.method === 'GET' && 
+                        !event.request.url.includes('chrome-extension')) {
                         const responseClone = response.clone();
                         caches.open(CACHE_NAME)
                             .then((cache) => cache.put(event.request, responseClone))
@@ -115,7 +119,9 @@ self.addEventListener('fetch', (event) => {
                         if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
                             fetch(event.request)
                                 .then((response) => {
-                                    if (response.status === 200 && response.type === 'basic') {
+                                    if (response.status === 200 && response.type === 'basic' && 
+                                        event.request.method === 'GET' && 
+                                        !event.request.url.includes('chrome-extension')) {
                                         caches.open(CACHE_NAME)
                                             .then((cache) => cache.put(event.request, response.clone()))
                                             .catch((err) => console.log('Background cache update failed:', err));
@@ -129,7 +135,9 @@ self.addEventListener('fetch', (event) => {
                     // Pas en cache, fetcher depuis le réseau
                     return fetch(event.request)
                         .then((response) => {
-                            if (response.status === 200 && response.type === 'basic') {
+                            if (response.status === 200 && response.type === 'basic' && 
+                                event.request.method === 'GET' && 
+                                !event.request.url.includes('chrome-extension')) {
                                 const responseClone = response.clone();
                                 caches.open(CACHE_NAME)
                                     .then((cache) => cache.put(event.request, responseClone))
