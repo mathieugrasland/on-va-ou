@@ -175,7 +175,7 @@ export class SecureMapManager {
                 strokeColor: '#ffffff',
                 strokeWeight: 2,
                 strokeOpacity: 1,
-                labelOrigin: new google.maps.Point(0, -15) // Décale le label au-dessus
+                labelOrigin: new google.maps.Point(0, -3) // Décale le label au-dessus
             },
             label: {
                 text: name,
@@ -203,7 +203,7 @@ export class SecureMapManager {
                 strokeColor: '#ffffff',
                 strokeWeight: 2,
                 strokeOpacity: 1,
-                labelOrigin: new google.maps.Point(0, -12) // Décale le label au-dessus
+                labelOrigin: new google.maps.Point(0, -3) // Décale le label au-dessus
             },
             label: {
                 text: name,
