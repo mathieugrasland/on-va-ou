@@ -107,46 +107,78 @@
         }
 
         .friends-list {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
             margin-top: 20px;
         }
 
         .friend-card {
-            background: #f8f9fa;
-            padding: 12px 15px;
-            border-radius: 8px;
-            border-left: 3px solid #34A853;
+            background: transparent;
+            padding: 12px 16px;
+            border-radius: 6px;
+            border: 1px solid var(--input-border);
             transition: all 0.2s ease;
             display: flex;
             align-items: center;
+            justify-content: space-between;
+            min-height: 48px;
         }
 
         .friend-card:hover {
-            transform: translateY(-2px);
-            background: #fff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            background: rgba(93, 64, 55, 0.02);
+            border-color: var(--primary-color);
+        }
+
+        .friend-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .friend-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
         }
 
         .friend-name {
-            font-weight: 600;
+            font-weight: 500;
             color: var(--dark-text);
+            font-size: 15px;
+        }
+
+        .friend-status {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            font-size: 13px;
+            color: #666;
         }
 
         .status-indicator {
             display: inline-block;
-            width: 6px;
-            height: 6px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             transition: all 0.2s ease;
         }
 
-        .status-online { background: #34A853; }
-        .status-offline { background: #ccc; }
+        .status-online { 
+            background: #2e7d32; 
+            box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
+        }
+        
+        .status-offline { 
+            background: #bbb; 
+        }
 
         .loading-message {
             text-align: center;
@@ -507,19 +539,31 @@
             }
         }
 
-        // Créer une carte d'ami
+        // Créer une carte d'ami simplifiée
         function createFriendCard(friendData, index) {
             const card = document.createElement('div');
             card.className = 'friend-card';
 
             const hasAddress = friendData.address && friendData.address.trim();
             const statusClass = hasAddress ? 'status-online' : 'status-offline';
-            const color = FRIEND_COLORS[index % FRIEND_COLORS.length]; // <-- on prend la palette globale
+            const statusText = hasAddress ? 'En ligne' : 'Hors ligne';
+            const color = FRIEND_COLORS[index % FRIEND_COLORS.length];
+            
+            // Première lettre du prénom pour l'avatar
+            const firstLetter = (friendData.firstName || 'A').charAt(0).toUpperCase();
 
             card.innerHTML = `
-                <div class="friend-name" style="color: ${color}; font-weight: bold;">
-                    <span class="status-indicator ${statusClass}" style="background-color: ${color};"></span>
-                    ${friendData.firstName || 'Ami'}
+                <div class="friend-info">
+                    <div class="friend-avatar" style="background-color: ${color};">
+                        ${firstLetter}
+                    </div>
+                    <div class="friend-name">
+                        ${friendData.firstName || 'Ami'}
+                    </div>
+                </div>
+                <div class="friend-status">
+                    <span class="status-indicator ${statusClass}"></span>
+                    ${statusText}
                 </div>
             `;
 

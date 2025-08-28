@@ -166,23 +166,17 @@ export class SecureMapManager {
         this.userMarker = new google.maps.Marker({
             position: location,
             map: this.map,
-            title: name,
+            title: `Vous (${name})`,
             icon: {
                 path: google.maps.SymbolPath.CIRCLE,
-                scale: 5,
-                fillColor: '#4285F4',
-                fillOpacity: 1,
+                scale: 8,
+                fillColor: '#5d4037', // Couleur marron fixe pour l'utilisateur
+                fillOpacity: 0.9,
                 strokeColor: '#ffffff',
-                strokeWeight: 1,
-                labelOrigin: new google.maps.Point(0, -2.5)
+                strokeWeight: 2,
+                strokeOpacity: 1
             },
-            label: {
-                text: name,            // Le prénom affiché
-                color: '#4285F4',      // Couleur du texte
-                fontSize: "12px",      // Taille de la police
-                fontWeight: "bold",    // Gras
-                className: "marker-label" // (optionnel, permet de styliser en CSS)
-            }
+            zIndex: 1000 // S'assurer que le marqueur utilisateur est au-dessus
         });
     }
 
@@ -193,23 +187,17 @@ export class SecureMapManager {
         const marker = new google.maps.Marker({
             position: location,
             map: this.map,
-            title: name,
+            title: `${name}`,
             icon: {
                 path: google.maps.SymbolPath.CIRCLE,
-                scale: 3,
+                scale: 6,
                 fillColor: color,
-                fillOpacity: 1,
+                fillOpacity: 0.8,
                 strokeColor: '#ffffff',
-                strokeWeight: 1,
-                labelOrigin: new google.maps.Point(0, -2.5)
+                strokeWeight: 2,
+                strokeOpacity: 1
             },
-            label: {
-                text: name,
-                color: color,
-                fontSize: "12px",
-                fontWeight: "bold",
-                className: "marker-label"
-            }
+            zIndex: 100
         });
 
         this.friendMarkers.push({ marker, friendId, name, color });

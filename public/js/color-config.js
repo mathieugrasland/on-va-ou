@@ -18,18 +18,16 @@ export const INTERFACE_COLORS = {
 // Cette palette respecte l'harmonie avec les couleurs de l'interface
 // tout en offrant une bonne visibilité sur les cartes
 export const FRIEND_COLORS = [
-    '#d84315', // Rouge terre cuite moderne
-    '#7b1fa2', // Violet profond
-    '#1565c0', // Bleu océan
-    '#00695c', // Vert émeraude
-    '#ef6c00', // Orange brûlé
     '#5d4037', // Marron (cohérent avec l'interface)
     '#ad1457', // Rose bordeaux
-    '#2e7d32', // Vert forêt
-    '#1976d2', // Bleu royal
-    '#f57c00', // Ambre doré
+    '#00695c', // Vert émeraude
+    '#b65b00ff', // Ambre doré
     '#455a64', // Gris bleu
-    '#6a1b9a'  // Violet améthyste
+    '#6a1b9a',  // Violet améthyste
+    '#2e7d32', // Vert forêt
+    '#d84315', // Rouge terre cuite moderne
+    '#7b1fa2', // Violet profond
+    '#ef6c00', // Orange brûlé
 ];
 
 // Couleurs spéciales pour les statuts
