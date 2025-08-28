@@ -109,75 +109,27 @@
         .friends-list {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            margin-top: 20px;
+            gap: 4px;
+            margin-top: 15px;
         }
 
         .friend-card {
             background: transparent;
-            padding: 12px 16px;
-            border-radius: 6px;
-            border: 1px solid var(--input-border);
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            min-height: 48px;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+            cursor: default;
         }
 
         .friend-card:hover {
-            background: rgba(93, 64, 55, 0.02);
-            border-color: var(--primary-color);
-        }
-
-        .friend-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .friend-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            font-size: 14px;
-            flex-shrink: 0;
+            background: rgba(93, 64, 55, 0.05);
         }
 
         .friend-name {
             font-weight: 500;
-            color: var(--dark-text);
-            font-size: 15px;
-        }
-
-        .friend-status {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            color: #666;
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            transition: all 0.2s ease;
-        }
-
-        .status-online { 
-            background: #2e7d32; 
-            box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
-        }
-        
-        .status-offline { 
-            background: #bbb; 
+            font-size: 14px;
+            margin: 0;
         }
 
         .loading-message {
@@ -539,31 +491,16 @@
             }
         }
 
-        // Créer une carte d'ami simplifiée
+        // Créer une carte d'ami ultra-simplifiée
         function createFriendCard(friendData, index) {
             const card = document.createElement('div');
             card.className = 'friend-card';
 
-            const hasAddress = friendData.address && friendData.address.trim();
-            const statusClass = hasAddress ? 'status-online' : 'status-offline';
-            const statusText = hasAddress ? 'En ligne' : 'Hors ligne';
             const color = FRIEND_COLORS[index % FRIEND_COLORS.length];
-            
-            // Première lettre du prénom pour l'avatar
-            const firstLetter = (friendData.firstName || 'A').charAt(0).toUpperCase();
 
             card.innerHTML = `
-                <div class="friend-info">
-                    <div class="friend-avatar" style="background-color: ${color};">
-                        ${firstLetter}
-                    </div>
-                    <div class="friend-name">
-                        ${friendData.firstName || 'Ami'}
-                    </div>
-                </div>
-                <div class="friend-status">
-                    <span class="status-indicator ${statusClass}"></span>
-                    ${statusText}
+                <div class="friend-name" style="color: ${color};">
+                    ${friendData.firstName || 'Ami'}
                 </div>
             `;
 
