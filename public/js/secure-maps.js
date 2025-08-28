@@ -166,7 +166,7 @@ export class SecureMapManager {
         this.userMarker = new google.maps.Marker({
             position: location,
             map: this.map,
-            title: `Vous (${name})`,
+            title: `Moi`,
             icon: {
                 path: google.maps.SymbolPath.CIRCLE,
                 scale: 8,
@@ -174,7 +174,14 @@ export class SecureMapManager {
                 fillOpacity: 0.9,
                 strokeColor: '#ffffff',
                 strokeWeight: 2,
-                strokeOpacity: 1
+                strokeOpacity: 1,
+                labelOrigin: new google.maps.Point(0, -15) // Décale le label au-dessus
+            },
+            label: {
+                text: name,
+                color: '#5d4037',
+                fontSize: '11px',
+                fontWeight: '500'
             },
             zIndex: 1000 // S'assurer que le marqueur utilisateur est au-dessus
         });
@@ -195,7 +202,14 @@ export class SecureMapManager {
                 fillOpacity: 0.8,
                 strokeColor: '#ffffff',
                 strokeWeight: 2,
-                strokeOpacity: 1
+                strokeOpacity: 1,
+                labelOrigin: new google.maps.Point(0, -12) // Décale le label au-dessus
+            },
+            label: {
+                text: name,
+                color: color,
+                fontSize: '11px',
+                fontWeight: '500'
             },
             zIndex: 100
         });
