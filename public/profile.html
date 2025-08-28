@@ -286,8 +286,17 @@
         // Fonction utilitaire pour afficher des messages
         function showMessage(message, type = 'success') {
             const messageDiv = document.createElement('div');
-            messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
+            messageDiv.className = type === 'error' ? 'error-message' : 
+                                 type === 'warning' ? 'warning-message' : 'success-message';
             messageDiv.textContent = message;
+            
+            let backgroundColor;
+            switch(type) {
+                case 'error': backgroundColor = '#f44336'; break;
+                case 'warning': backgroundColor = '#ff9800'; break;
+                default: backgroundColor = '#4caf50'; break;
+            }
+            
             messageDiv.style.cssText = `
                 position: fixed;
                 top: 20px;
@@ -298,7 +307,7 @@
                 font-weight: 500;
                 z-index: 1000;
                 max-width: 400px;
-                background: ${type === 'error' ? '#f44336' : '#4caf50'};
+                background: ${backgroundColor};
                 box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             `;
             
@@ -885,6 +894,53 @@
                     showMessage('Veuillez saisir une adresse email valide', 'error');
                     return;
                 }
+
+                // Vérifier si l'adresse a changé pour géocoder si nécessaire
+                const addressChanged = !userProfile.address || userProfile.address.trim() !== profileData.address;
+                
+                if (addressChanged && profileData.address) {
+                    try {
+                        submitBtn.textContent = 'Géolocalisation...';
+                        
+                        // Géocoder la nouvelle adresse
+                        const response = await fetch('/api/geocode', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${await currentUser.getIdToken()}`
+                            },
+                            body: JSON.stringify({ address: profileData.address })
+                        });
+
+                        if (response.ok) {
+                            const geoData = await response.json();
+                            if (geoData.success) {
+                                // Ajouter les coordonnées au profil
+                                profileData.coordinates = {
+                                    lat: geoData.location.lat,
+                                    lng: geoData.location.lng,
+                                    formatted_address: geoData.formatted_address,
+                                    geocoded_at: new Date().toISOString()
+                                };
+                                console.log('Adresse géocodée avec succès:', profileData.coordinates);
+                            } else {
+                                console.warn('Géocodage échoué:', geoData.error);
+                                showMessage('Adresse géolocalisée avec difficulté, vérifiez si elle est correcte', 'warning');
+                            }
+                        } else {
+                            console.warn('Erreur API géocodage');
+                            showMessage('Problème de géolocalisation, mais profil sauvegardé', 'warning');
+                        }
+                    } catch (geoError) {
+                        console.warn('Erreur géocodage:', geoError);
+                        showMessage('Problème de géolocalisation, mais profil sauvegardé', 'warning');
+                    }
+                } else if (!addressChanged && userProfile.coordinates) {
+                    // Garder les coordonnées existantes si l'adresse n'a pas changé
+                    profileData.coordinates = userProfile.coordinates;
+                }
+
+                submitBtn.textContent = 'Finalisation...';
 
                 // Mise à jour en base
                 await updateDoc(doc(db, 'users', currentUser.uid), profileData);

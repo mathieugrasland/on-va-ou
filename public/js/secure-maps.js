@@ -1,5 +1,5 @@
 // Import des fonctions Firestore v9+
-import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 // Import de la configuration des couleurs
 import { FRIEND_COLORS, getFriendColorById } from './color-config.js';
 
@@ -49,54 +49,6 @@ class SecureGeocodingService {
             throw error;
         }
     }
-
-    // Nouvelle méthode pour géocoder plusieurs adresses en une seule fois
-    async geocodeMultipleAddresses(addressesData) {
-        try {
-            const user = this.auth?.currentUser;
-            if (!user) {
-                throw new Error('Utilisateur non authentifié');
-            }
-
-            const token = await user.getIdToken();
-            
-            const response = await fetch(`${this.baseUrl}/api/geocode-batch`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ addresses: addressesData })
-            });
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Erreur de géocodage batch');
-            }
-
-            const data = await response.json();
-            
-            if (!data.success) {
-                throw new Error(data.error || 'Erreur géocodage batch');
-            }
-
-            return data.results; // Retourne un objet avec les résultats indexés par ID
-
-        } catch (error) {
-            console.error('Erreur géocodage batch:', error);
-            throw error;
-        }
-    }
-
-    async geocodeMultipleAddresses(addresses) {
-        const promises = addresses.map(address => 
-            this.geocodeAddress(address).catch(error => ({
-                address,
-                error: error.message
-            }))
-        );
-        return Promise.all(promises);
-    }
 }
 
 export class SecureMapManager {
@@ -124,7 +76,7 @@ export class SecureMapManager {
             const defaultPosition = { lat: 48.8566, lng: 2.3522 };
 
             this.map = new google.maps.Map(mapElement, {
-                zoom: 11.5, // Zoom intermédiaire entre 11 et 12
+                zoom: 12, // Zoom intermédiaire entre 11 et 12
                 center: defaultPosition,
                 mapTypeId: 'roadmap',
                 mapTypeControl: false,
@@ -161,32 +113,64 @@ export class SecureMapManager {
             const userData = userDoc.data();
             const friends = userData.friends || [];
             
-            // Préparer toutes les adresses à géocoder en une fois
-            const addressesToGeocode = [];
-            
-            // Ajouter l'adresse de l'utilisateur
-            if (userData.address) {
-                addressesToGeocode.push({
-                    id: 'user',
-                    address: userData.address,
-                    name: userData.firstName || 'Vous',
-                    type: 'user'
-                });
+            // Charger notre propre position depuis les coordonnées stockées
+            if (userData.coordinates && userData.coordinates.lat && userData.coordinates.lng) {
+                const location = {
+                    lat: userData.coordinates.lat,
+                    lng: userData.coordinates.lng
+                };
+                this.addUserMarker(location, userData.firstName || 'Vous');
+                console.log('Position utilisateur chargée depuis le cache:', location);
+            } else if (userData.address) {
+                console.log('Coordonnées utilisateur manquantes, géocodage requis pour:', userData.address);
+                // Fallback : géocoder si pas de coordonnées (utilisateurs anciens)
+                try {
+                    const location = await this.geocodingService.geocodeAddress(userData.address);
+                    this.addUserMarker(location, userData.firstName || 'Vous');
+                    
+                    // Sauvegarder les coordonnées pour la prochaine fois
+                    await updateDoc(userDocRef, {
+                        coordinates: {
+                            lat: location.lat,
+                            lng: location.lng,
+                            formatted_address: location.formatted_address,
+                            geocoded_at: new Date().toISOString()
+                        }
+                    });
+                    console.log('Coordonnées utilisateur sauvegardées pour cache futur');
+                } catch (error) {
+                    console.error('Erreur géocodage utilisateur:', error);
+                }
             }
 
-            // Charger les données des amis et préparer leurs adresses
+            if (friends.length === 0) return;
+
+            // Charger les positions des amis depuis leurs coordonnées stockées
+            const friendsNeedingGeocode = [];
+            let loadedFromCache = 0;
+
             for (const friendId of friends) {
                 try {
                     const friendDoc = await getDoc(doc(this.db, 'users', friendId));
                     if (!friendDoc.exists()) continue;
 
                     const friendData = friendDoc.data();
-                    if (friendData.address) {
-                        addressesToGeocode.push({
+                    
+                    // Priorité 1: Utiliser les coordonnées stockées
+                    if (friendData.coordinates && friendData.coordinates.lat && friendData.coordinates.lng) {
+                        const location = {
+                            lat: friendData.coordinates.lat,
+                            lng: friendData.coordinates.lng
+                        };
+                        this.addFriendMarker(location, friendData.firstName || 'Ami', friendId);
+                        loadedFromCache++;
+                    } else if (friendData.address) {
+                        // Priorité 2: Marquer pour géocodage si pas de coordonnées
+                        friendsNeedingGeocode.push({
                             id: friendId,
                             address: friendData.address,
                             name: friendData.firstName || 'Ami',
-                            type: 'friend'
+                            docRef: doc(this.db, 'users', friendId)
                         });
                     }
                 } catch (error) {
@@ -194,29 +178,30 @@ export class SecureMapManager {
                 }
             }
 
-            // Si aucune adresse à géocoder, on s'arrête
-            if (addressesToGeocode.length === 0) return;
+            console.log(`${loadedFromCache} amis chargés depuis le cache, ${friendsNeedingGeocode.length} nécessitent un géocodage`);
 
-            // Un seul appel pour toutes les adresses !
-            console.log(`Géocodage de ${addressesToGeocode.length} adresses en une seule fois...`);
-            const geoResults = await this.geocodingService.geocodeMultipleAddresses(addressesToGeocode);
-
-            // Traiter les résultats
-            for (const addressData of addressesToGeocode) {
-                const result = geoResults[addressData.id];
-                if (result && result.success) {
-                    const location = {
-                        lat: result.location.lat,
-                        lng: result.location.lng
-                    };
-
-                    if (addressData.type === 'user') {
-                        this.addUserMarker(location, addressData.name);
-                    } else {
-                        this.addFriendMarker(location, addressData.name, addressData.id);
+            // Géocoder seulement les amis sans coordonnées (fallback pour anciens utilisateurs)
+            if (friendsNeedingGeocode.length > 0) {
+                console.log('Géocodage de sauvegarde pour amis sans coordonnées...');
+                
+                for (const friendInfo of friendsNeedingGeocode) {
+                    try {
+                        const location = await this.geocodingService.geocodeAddress(friendInfo.address);
+                        this.addFriendMarker(location, friendInfo.name, friendInfo.id);
+                        
+                        // Sauvegarder les coordonnées pour la prochaine fois
+                        await updateDoc(friendInfo.docRef, {
+                            coordinates: {
+                                lat: location.lat,
+                                lng: location.lng,
+                                formatted_address: location.formatted_address,
+                                geocoded_at: new Date().toISOString()
+                            }
+                        });
+                        console.log(`Coordonnées sauvegardées pour ${friendInfo.name}`);
+                    } catch (error) {
+                        console.error(`Erreur géocodage ami ${friendInfo.name}:`, error);
                     }
-                } else {
-                    console.warn(`Géocodage échoué pour ${addressData.name}:`, result?.error);
                 }
             }
 

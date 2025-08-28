@@ -26,10 +26,6 @@
       {
         "source": "/api/geocode",
         "function": "geocode_address"
-      },
-      {
-        "source": "/api/geocode-batch",
-        "function": "geocode_batch"
       }
     ],
     "headers": [
