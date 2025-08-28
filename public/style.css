@@ -934,3 +934,201 @@ a:hover {
         border-radius: 0;
     }
 }
+
+/* ===== STYLES POUR LES RÉSULTATS DE BARS ===== */
+
+/* Container principal des résultats */
+#bars-results {
+    margin-top: 30px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    box-shadow: var(--shadow-light);
+}
+
+#bars-results h3 {
+    color: var(--primary-color);
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+/* Liste des bars */
+#bars-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* Carte individuelle de bar */
+.bar-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow-light);
+    transition: all var(--transition-speed);
+    border: 1px solid var(--input-border);
+}
+
+.bar-card:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+}
+
+.bar-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 8px;
+}
+
+.bar-address {
+    color: #666;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+}
+
+.bar-info {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.bar-rating, .bar-distance {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: rgba(93, 64, 55, 0.1);
+    color: var(--primary-color);
+}
+
+/* Actions des bars */
+.bar-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.bar-action-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.bar-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.details-btn {
+    background: var(--primary-color);
+    color: white;
+}
+
+.details-btn:hover {
+    background: #4a2c24;
+}
+
+.maps-btn {
+    background: #4285f4;
+    color: white;
+}
+
+.maps-btn:hover {
+    background: #3367d6;
+}
+
+.bar-action-btn:not(.details-btn):not(.maps-btn) {
+    background: var(--accent-color);
+    color: var(--primary-color);
+}
+
+.bar-action-btn:not(.details-btn):not(.maps-btn):hover {
+    background: #ffaa3a;
+}
+
+/* Détails des temps de trajet */
+.bar-details {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--input-border);
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.travel-times h4 {
+    color: var(--primary-color);
+    margin-bottom: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.travel-time-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(93, 64, 55, 0.05);
+    border-radius: 8px;
+    margin-bottom: 6px;
+}
+
+.person-name {
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+.travel-time {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Responsivité pour les bars */
+@media (max-width: 768px) {
+    #bars-results {
+        margin: 20px -20px 0 -20px;
+        border-radius: 0;
+    }
+    
+    .bar-actions {
+        justify-content: center;
+    }
+    
+    .bar-action-btn {
+        flex: 1;
+        justify-content: center;
+        min-width: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .bar-card {
+        padding: 15px;
+    }
+    
+    .bar-info {
+        justify-content: center;
+    }
+    
+    .bar-actions {
+        flex-direction: column;
+    }
+    
+    .bar-action-btn {
+        width: 100%;
+    }
+}

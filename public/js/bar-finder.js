@@ -86,6 +86,9 @@ export class BarFinder {
             // Récupérer les positions de tous les amis sélectionnés + utilisateur actuel
             const positions = await this.getFriendsPositions();
             
+            // Stocker les positions pour l'affichage des détails
+            this.lastUsedPositions = positions;
+            
             if (positions.length < 1) {
                 throw new Error('Aucune position valide trouvée. Vérifiez que vous et vos amis avez renseigné une adresse dans leur profil.');
             }
@@ -269,6 +272,57 @@ export class BarFinder {
     }
 
     /**
+     * Affiche/cache les détails des temps de trajet pour un bar
+     */
+    toggleBarDetails(barIndex) {
+        const detailsEl = document.getElementById(`bar-details-${barIndex}`);
+        const timesEl = document.getElementById(`travel-times-${barIndex}`);
+        const button = document.querySelector(`button[onclick="barFinder.toggleBarDetails(${barIndex})"]`);
+        
+        if (!detailsEl || !timesEl) return;
+        
+        if (detailsEl.classList.contains('hidden')) {
+            // Afficher les détails
+            this.populateBarDetails(barIndex, timesEl);
+            detailsEl.classList.remove('hidden');
+            button.textContent = '📊 Masquer détails';
+        } else {
+            // Masquer les détails
+            detailsEl.classList.add('hidden');
+            button.textContent = '📊 Détails temps';
+        }
+    }
+
+    /**
+     * Remplit les détails des temps de trajet
+     */
+    populateBarDetails(barIndex, container) {
+        const bar = this.bars[barIndex];
+        if (!bar || !bar.travel_times || !this.lastUsedPositions) return;
+        
+        container.innerHTML = '';
+        
+        // Créer une liste des temps par personne
+        bar.travel_times.forEach((time, index) => {
+            if (index < this.lastUsedPositions.length) {
+                const position = this.lastUsedPositions[index];
+                const timeEl = document.createElement('div');
+                timeEl.className = 'travel-time-item';
+                
+                // Utiliser "Moi" pour l'utilisateur actuel
+                const displayName = position.id === this.currentUser.uid ? 'Moi' : position.name;
+                
+                timeEl.innerHTML = `
+                    <span class="person-name">${displayName}</span>
+                    <span class="travel-time">⏱️ ${Math.round(time)} min</span>
+                `;
+                
+                container.appendChild(timeEl);
+            }
+        });
+    }
+
+    /**
      * Crée une carte pour un bar
      */
     createBarCard(bar, index) {
@@ -283,9 +337,18 @@ export class BarFinder {
             <div class="bar-address">${bar.address}</div>
             <div class="bar-info">
                 <span class="bar-rating">⭐ ${rating}</span>
-                <span class="bar-distance">⏱️ ~${avgTime} min</span>
+                <span class="bar-distance">⏱️ ~${avgTime} min (moyenne)</span>
+            </div>
+            <div class="bar-details hidden" id="bar-details-${index}">
+                <div class="travel-times">
+                    <h4>Temps de trajet détaillés :</h4>
+                    <div id="travel-times-${index}"></div>
+                </div>
             </div>
             <div class="bar-actions">
+                <button class="bar-action-btn details-btn" onclick="barFinder.toggleBarDetails(${index})">
+                    📊 Détails temps
+                </button>
                 <button class="bar-action-btn maps-btn" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bar.name + ' ' + bar.address)}', '_blank')">
                     📍 Voir sur Maps
                 </button>
