@@ -204,8 +204,8 @@ export class BarFinder {
         console.log('Token récupéré, longueur:', idToken.length);
         
         try {
-            // Utiliser l'URL directe de la Cloud Function pour le moment
-            const response = await fetch('https://us-central1-on-va-ou-c6d7f.cloudfunctions.net/find_optimal_bars', {
+            // Utiliser le routage Firebase au lieu de l'URL directe
+            const response = await fetch('/api/find-bars', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
