@@ -33,6 +33,10 @@ export class BarFinder {
     getTransportIcon(transportMode) {
         const icons = {
             'walking': '🚶',
+            'car': '🚗',              // Valeur réelle stockée en DB
+            'bicycle': '🚲',          // Valeur réelle stockée en DB  
+            'public_transport': '🚌', // Valeur réelle stockée en DB
+            // Anciens mappings pour compatibilité
             'driving': '🚗',
             'bicycling': '🚲',
             'transit': '🚌'
