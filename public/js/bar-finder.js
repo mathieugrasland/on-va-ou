@@ -88,7 +88,7 @@ export class BarFinder {
     /**
      * Trouve les bars optimaux pour les amis sélectionnés
      */
-    async findOptimalBars() {
+    async findOptimalBars(searchRadius = 400) {
         if (this.selectedFriends.size === 0) return;
 
         const statusEl = document.getElementById('search-status');
@@ -114,10 +114,11 @@ export class BarFinder {
                 throw new Error(`Seulement ${positions.length} position(s) trouvée(s). Il faut au moins 2 personnes avec des adresses valides.`);
             }
             
-            statusEl.textContent = 'Calcul du point optimal et recherche de bars (600m)...';
+            const radiusKm = (searchRadius / 1000).toFixed(1);
+            statusEl.textContent = `Calcul du point optimal et recherche de bars (${radiusKm}km)...`;
             
             // Appeler la Cloud Function pour trouver les bars
-            const bars = await this.callFindBarsCloudFunction(positions);
+            const bars = await this.callFindBarsCloudFunction(positions, searchRadius);
             
             if (bars && bars.length > 0) {
                 statusEl.textContent = `${bars.length} bar(s) bien noté(s) trouvé(s) !`;
@@ -129,13 +130,52 @@ export class BarFinder {
             
         } catch (error) {
             console.error('Erreur recherche bars:', error);
-            statusEl.textContent = `Erreur: ${error.message}`;
-            this.showMessage('Erreur lors de la recherche de bars', 'error');
+            
+            // Vérifier si c'est une erreur 404 avec "Aucun bar trouvé dans la zone"
+            if (error.message.includes('404') && error.message.includes('Aucun bar trouvé')) {
+                await this.handleNoBarFoundError(searchRadius);
+            } else {
+                statusEl.textContent = `Erreur: ${error.message}`;
+                this.showMessage('Erreur lors de la recherche de bars', 'error');
+            }
         } finally {
             // Restaurer l'UI
             findBarsBtn.disabled = this.selectedFriends.size === 0;
             findBarsBtn.textContent = '🔍 Trouver des bars';
         }
+    }
+
+    /**
+     * Gère le cas où aucun bar n'est trouvé et propose d'élargir la zone
+     */
+    async handleNoBarFoundError(currentRadius) {
+        const statusEl = document.getElementById('search-status');
+        const radiusKm = (currentRadius / 1000).toFixed(1);
+        
+        statusEl.textContent = `Aucun bar trouvé dans un rayon de ${radiusKm}km`;
+        
+        // Proposer d'élargir la zone seulement si on n'a pas déjà élargi plusieurs fois
+        if (currentRadius < 2400) { // Limite à 2.4km maximum (correspondant à la limite serveur de 2.5km)
+            const expandRadius = currentRadius + 1000; // Ajouter 1km
+            const expandRadiusKm = (expandRadius / 1000).toFixed(1);
+            
+            const userWantsExpand = confirm(
+                `Aucun bar trouvé dans un rayon de ${radiusKm}km.\n\n` +
+                `Voulez-vous élargir la zone de recherche à ${expandRadiusKm}km ?`
+            );
+            
+            if (userWantsExpand) {
+                statusEl.textContent = `Extension de la zone de recherche à ${expandRadiusKm}km...`;
+                await this.findOptimalBars(expandRadius);
+                return;
+            }
+        }
+        
+        // Si l'utilisateur refuse ou si on a atteint la limite
+        this.showMessage(
+            `Aucun bar trouvé dans un rayon de ${radiusKm}km. Essayez avec d'autres amis ou une zone différente.`, 
+            'info'
+        );
     }
 
     /**
@@ -217,8 +257,9 @@ export class BarFinder {
     /**
      * Appelle la Cloud Function pour trouver les bars optimaux
      */
-    async callFindBarsCloudFunction(positions) {
+    async callFindBarsCloudFunction(positions, searchRadius = 400) {
         console.log('Appel Cloud Function avec positions:', positions);
+        console.log('Rayon de recherche:', searchRadius, 'm');
         
         const idToken = await this.currentUser.getIdToken();
         console.log('Token récupéré, longueur:', idToken.length);
@@ -234,7 +275,7 @@ export class BarFinder {
                 body: JSON.stringify({
                     positions: positions,
                     max_bars: 5,
-                    search_radius: 400 // 400m de rayon
+                    search_radius: searchRadius
                 })
             });
 

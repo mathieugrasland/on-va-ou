@@ -157,7 +157,7 @@ def find_optimal_bars(request):
         
         positions = request_json['positions']
         max_bars = request_json.get('max_bars', 5)
-        search_radius = min(request_json.get('search_radius', 400), 600)  # Limiter entre 400-600m pour performance
+        search_radius = min(request_json.get('search_radius', 400), 2500)  # Élargi jusqu'à 2.5km pour permettre les extensions
         
         if len(positions) < 2:
             return jsonify({"error": "Au moins 2 positions requises"}), 400, headers
