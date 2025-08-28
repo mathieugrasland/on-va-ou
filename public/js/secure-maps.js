@@ -386,13 +386,12 @@ export class SecureMapManager {
                 title: bar.name,
                 icon: {
                     url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                        <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="16" cy="16" r="14" fill="#ff6b35" stroke="#fff" stroke-width="3"/>
-                            <text x="16" y="21" text-anchor="middle" font-family="Arial" font-size="16" fill="#fff">🍺</text>
+                        <svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M10 2 L18 16 L2 16 Z" fill="#d4a574" stroke="#fff" stroke-width="2"/>
                         </svg>
                     `),
-                    scaledSize: new google.maps.Size(32, 32),
-                    anchor: new google.maps.Point(16, 16)
+                    scaledSize: new google.maps.Size(20, 20),
+                    anchor: new google.maps.Point(10, 16)
                 },
                 zIndex: 1000 + index
             });
