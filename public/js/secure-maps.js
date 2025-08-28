@@ -379,9 +379,14 @@ export class SecureMapManager {
         bars.forEach((bar, index) => {
             // Déterminer l'emoji selon le type de bar
             let emojiIcon = '📍'; // Par défaut
+            let fontSize = '16'; // Taille de police par défaut
             
             if (bar.marker_emoji) {
                 emojiIcon = bar.marker_emoji;
+                // Si c'est un emoji combiné (plus long), réduire la taille
+                if (bar.marker_type === 'fastest_and_balanced') {
+                    fontSize = '12';
+                }
             }
             
             const marker = new google.maps.Marker({
@@ -395,7 +400,7 @@ export class SecureMapManager {
                     url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
                         <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
                             <circle cx="16" cy="16" r="14" fill="white" fill-opacity="0.85" stroke="#333" stroke-width="1.5"/>
-                            <text x="16" y="22" text-anchor="middle" font-size="16" fill="#333" style="text-shadow: 0 0 2px white;">${emojiIcon}</text>
+                            <text x="16" y="22" text-anchor="middle" font-size="${fontSize}" fill="#333" style="text-shadow: 0 0 2px white;">${emojiIcon}</text>
                         </svg>
                     `),
                     scaledSize: new google.maps.Size(32, 32),

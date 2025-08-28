@@ -260,24 +260,41 @@ def find_optimal_bars(request):
         if len(best_bars) > 0:
             # 1. Bar avec la plus petite moyenne de temps de trajet -> emoji éclair ⚡
             min_avg_time_bar = min(best_bars, key=lambda x: x['avg_travel_time'])
-            min_avg_time_bar['marker_emoji'] = '⚡'
-            min_avg_time_bar['marker_type'] = 'fastest'
             
             # 2. Bar avec le plus petit écart de trajet -> emoji balance ⚖️
             min_spread_bar = min(best_bars, key=lambda x: x['time_balance_score'])
-            min_spread_bar['marker_emoji'] = '⚖️'
-            min_spread_bar['marker_type'] = 'most_balanced'
             
-            # Si c'est le même bar, privilégier l'équilibre (balance) car plus rare
-            if min_avg_time_bar['place_id'] == min_spread_bar['place_id']:
-                min_avg_time_bar['marker_emoji'] = '⚖️'
-                min_avg_time_bar['marker_type'] = 'most_balanced'
-            
-            # 3. Tous les autres bars -> emoji pin 📍
+            # Initialiser tous les bars avec le type standard
             for bar in best_bars:
-                if 'marker_emoji' not in bar:
+                bar['marker_types'] = []
+                bar['marker_emojis'] = []
+            
+            # Marquer le bar le plus rapide
+            min_avg_time_bar['marker_types'].append('fastest')
+            min_avg_time_bar['marker_emojis'].append('⚡')
+            
+            # Marquer le bar le plus équitable
+            min_spread_bar['marker_types'].append('most_balanced')
+            min_spread_bar['marker_emojis'].append('⚖️')
+            
+            # Finaliser les marqueurs pour chaque bar
+            for bar in best_bars:
+                if len(bar['marker_types']) == 0:
+                    # Bar standard
                     bar['marker_emoji'] = '📍'
                     bar['marker_type'] = 'standard'
+                elif len(bar['marker_types']) == 1:
+                    # Bar avec une seule spécialité
+                    bar['marker_emoji'] = bar['marker_emojis'][0]
+                    bar['marker_type'] = bar['marker_types'][0]
+                else:
+                    # Bar avec plusieurs spécialités (le plus rapide ET le plus équitable)
+                    bar['marker_emoji'] = ''.join(bar['marker_emojis'])  # Combine les emojis
+                    bar['marker_type'] = 'fastest_and_balanced'
+                
+                # Nettoyer les propriétés temporaires
+                del bar['marker_types']
+                del bar['marker_emojis']
         
         total_time = time.time() - start_time
         print(f"Recherche complète terminée en {total_time:.2f}s - {len(best_bars)} bars retournés (scoring basé sur {len(participant_clusters)} clusters)")
