@@ -37,13 +37,14 @@ L'algorithme de recherche de bars optimaux suit une approche sophistiquée en pl
 - **Calcul des moyennes** : Temps moyen pondéré pour chaque bar selon les participants
 
 ### 5. Classement intelligent
-- **Critère principal** : Temps de trajet moyen croissant
-- **Critère secondaire** : Note Google décroissante (si disponible)
-- **Pondération** : Les bars les plus accessibles et mieux notés en premier
+- **Critère principal** : Temps de trajet moyen croissant (bars les plus rapides d'accès en premier)
+- **Critère secondaire** : Note Google décroissante (à temps égal, les mieux notés sont prioritaires)
+- **Critère tertiaire** : Écart-type des temps croissant (à note égale, ceux avec moins de variabilité sont favorisés)
+- **Résultat** : Les bars optimaux alliant rapidité d'accès, qualité et équité entre participants
 
 ### 6. Affichage des résultats
 - **Marqueurs personnalisés** : Étoiles fuchsia pour distinguer les bars des amis
-- **Détails expandables** : Temps de trajet détaillé par participant et mode de transport
+- **Détails expandables** : Temps de trajet détaillé par participant avec icônes de transport (🚶🚗🚲🚌)
 - **Intégration carte** : Centrage automatique et liens vers Google Maps
 
 ### Optimisations techniques
