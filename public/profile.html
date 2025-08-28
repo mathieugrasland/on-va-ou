@@ -281,7 +281,7 @@
     <script type="module">
         import { auth, db } from './firebase-config.js';
         import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-        import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, arrayUnion, arrayRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+        import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, arrayUnion, arrayRemove, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
         // Fonction utilitaire pour afficher des messages
         function showMessage(message, type = 'success') {
@@ -530,6 +530,17 @@
         // Charger la liste des amis et demandes
         async function loadFriends() {
             try {
+                // D'abord synchroniser les données pour nettoyer les incohérences
+                const hasChanges = await syncFriendRequestsData();
+                
+                // Recharger le profil si des corrections ont été apportées
+                if (hasChanges) {
+                    const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                    if (userDoc.exists()) {
+                        userProfile = userDoc.data();
+                    }
+                }
+                
                 await loadFriendRequests();
                 await loadConfirmedFriends();
             } catch (error) {
@@ -693,53 +704,68 @@
                     return;
                 }
 
-                // Envoyer la demande d'amitié (Transaction pour cohérence)
-                console.log('Envoi demande d\'amitié à:', targetUid);
+                // Utiliser une transaction pour garantir la cohérence
+                console.log('📤 Envoi demande d\'amitié à:', targetUid);
                 
-                try {
-                    // Étape 1: Ajouter à mes demandes envoyées
-                    console.log('Étape 1: Ajout à mes demandes envoyées...');
-                    await updateDoc(doc(db, 'users', currentUser.uid), {
-                        'friendRequests.sent': arrayUnion(targetUid)
-                    });
-                    console.log('✅ Étape 1 réussie');
-
-                    // Étape 2: Ajouter à ses demandes reçues
-                    console.log('Étape 2: Ajout à ses demandes reçues...');
-                    await updateDoc(doc(db, 'users', targetUid), {
-                        'friendRequests.received': arrayUnion(currentUser.uid)
-                    });
-                    console.log('✅ Étape 2 réussie');
+                await runTransaction(db, async (transaction) => {
+                    // Lire les documents actuels
+                    const currentUserDoc = await transaction.get(doc(db, 'users', currentUser.uid));
+                    const targetUserDoc = await transaction.get(doc(db, 'users', targetUid));
                     
-                } catch (transactionError) {
-                    // En cas d'échec partiel, essayer de nettoyer
-                    console.error('❌ Erreur transaction amitié:', transactionError);
-                    console.error('Détails erreur:', transactionError.code, transactionError.message);
-                    
-                    // Tenter de nettoyer la première opération si la seconde échoue
-                    try {
-                        await updateDoc(doc(db, 'users', currentUser.uid), {
-                            'friendRequests.sent': arrayRemove(targetUid)
-                        });
-                        console.log('🧹 Nettoyage effectué');
-                    } catch (cleanupError) {
-                        console.error('Erreur lors du nettoyage:', cleanupError);
+                    if (!currentUserDoc.exists() || !targetUserDoc.exists()) {
+                        throw new Error('Utilisateur non trouvé');
                     }
                     
-                    throw transactionError;
-                }
+                    const currentUserData = currentUserDoc.data();
+                    const targetUserData = targetUserDoc.data();
+                    
+                    // Vérifications finales dans la transaction
+                    const currentRequests = currentUserData.friendRequests || { sent: [], received: [] };
+                    const targetRequests = targetUserData.friendRequests || { sent: [], received: [] };
+                    
+                    if ((currentUserData.friends || []).includes(targetUid)) {
+                        throw new Error('Déjà amis');
+                    }
+                    
+                    if ((currentRequests.sent || []).includes(targetUid)) {
+                        throw new Error('Demande déjà envoyée');
+                    }
+                    
+                    if ((currentRequests.received || []).includes(targetUid)) {
+                        throw new Error('Demande déjà reçue de cette personne');
+                    }
+                    
+                    // Mises à jour atomiques
+                    transaction.update(doc(db, 'users', currentUser.uid), {
+                        'friendRequests.sent': arrayUnion(targetUid)
+                    });
+                    
+                    transaction.update(doc(db, 'users', targetUid), {
+                        'friendRequests.received': arrayUnion(currentUser.uid)
+                    });
+                });
 
                 // Mettre à jour le profil local
                 if (!userProfile.friendRequests) userProfile.friendRequests = { sent: [], received: [] };
                 if (!userProfile.friendRequests.sent) userProfile.friendRequests.sent = [];
-                userProfile.friendRequests.sent.push(targetUid);
+                if (!userProfile.friendRequests.sent.includes(targetUid)) {
+                    userProfile.friendRequests.sent.push(targetUid);
+                }
 
                 showMessage(`Demande d'amitié envoyée à ${targetUserData.firstName} ${targetUserData.lastName} !`);
                 await loadFriendRequests();
 
             } catch (error) {
-                console.error('Erreur envoi demande:', error);
-                showMessage('Erreur lors de l\'envoi de la demande', 'error');
+                console.error('❌ Erreur envoi demande:', error);
+                if (error.message === 'Déjà amis') {
+                    showMessage('Vous êtes déjà amis avec cette personne', 'error');
+                } else if (error.message === 'Demande déjà envoyée') {
+                    showMessage('Demande déjà envoyée à cette personne', 'error');
+                } else if (error.message === 'Demande déjà reçue de cette personne') {
+                    showMessage('Cette personne vous a déjà envoyé une demande ! Vérifiez vos demandes reçues.', 'error');
+                } else {
+                    showMessage('Erreur lors de l\'envoi de la demande', 'error');
+                }
             }
         }
 
@@ -748,25 +774,48 @@
             try {
                 console.log('🤝 Acceptation demande d\'amitié de:', senderUid);
                 
-                // Étape 1: Mettre à jour MON profil (ajouter ami + retirer demande reçue)
-                console.log('Étape 1: Mise à jour de mon profil...');
-                await updateDoc(doc(db, 'users', currentUser.uid), {
-                    friends: arrayUnion(senderUid),
-                    'friendRequests.received': arrayRemove(senderUid)
+                // Utiliser une transaction pour garantir la cohérence
+                await runTransaction(db, async (transaction) => {
+                    // Lire les documents actuels
+                    const currentUserDoc = await transaction.get(doc(db, 'users', currentUser.uid));
+                    const senderUserDoc = await transaction.get(doc(db, 'users', senderUid));
+                    
+                    if (!currentUserDoc.exists() || !senderUserDoc.exists()) {
+                        throw new Error('Utilisateur non trouvé');
+                    }
+                    
+                    const currentUserData = currentUserDoc.data();
+                    const senderUserData = senderUserDoc.data();
+                    
+                    // Vérifications dans la transaction
+                    const currentRequests = currentUserData.friendRequests || { sent: [], received: [] };
+                    const senderRequests = senderUserData.friendRequests || { sent: [], received: [] };
+                    
+                    if (!(currentRequests.received || []).includes(senderUid)) {
+                        throw new Error('Demande non trouvée');
+                    }
+                    
+                    if ((currentUserData.friends || []).includes(senderUid)) {
+                        throw new Error('Déjà amis');
+                    }
+                    
+                    // Mises à jour atomiques pour les deux utilisateurs
+                    transaction.update(doc(db, 'users', currentUser.uid), {
+                        friends: arrayUnion(senderUid),
+                        'friendRequests.received': arrayRemove(senderUid)
+                    });
+                    
+                    transaction.update(doc(db, 'users', senderUid), {
+                        friends: arrayUnion(currentUser.uid),
+                        'friendRequests.sent': arrayRemove(currentUser.uid)
+                    });
                 });
-                console.log('✅ Étape 1 réussie');
-
-                // Étape 2: Mettre à jour SON profil (ajouter ami + retirer demande envoyée)
-                console.log('Étape 2: Mise à jour de son profil...');
-                await updateDoc(doc(db, 'users', senderUid), {
-                    friends: arrayUnion(currentUser.uid),
-                    'friendRequests.sent': arrayRemove(currentUser.uid)
-                });
-                console.log('✅ Étape 2 réussie');
 
                 // Mettre à jour le profil local
                 if (!userProfile.friends) userProfile.friends = [];
-                userProfile.friends.push(senderUid);
+                if (!userProfile.friends.includes(senderUid)) {
+                    userProfile.friends.push(senderUid);
+                }
                 if (userProfile.friendRequests && userProfile.friendRequests.received) {
                     userProfile.friendRequests.received = userProfile.friendRequests.received.filter(uid => uid !== senderUid);
                 }
@@ -777,34 +826,50 @@
 
             } catch (error) {
                 console.error('❌ Erreur acceptation demande:', error);
-                console.error('Détails erreur:', error.code, error.message);
                 
-                // En cas d'erreur partielle, essayer de nettoyer les changements
-                try {
-                    console.log('🧹 Tentative de nettoyage...');
-                    await updateDoc(doc(db, 'users', currentUser.uid), {
-                        friends: arrayRemove(senderUid),
-                        'friendRequests.received': arrayUnion(senderUid)
-                    });
-                    console.log('🧹 Nettoyage effectué');
-                } catch (cleanupError) {
-                    console.error('Erreur lors du nettoyage:', cleanupError);
+                if (error.message === 'Demande non trouvée') {
+                    showMessage('Demande non trouvée', 'error');
+                } else if (error.message === 'Déjà amis') {
+                    showMessage('Vous êtes déjà amis avec cette personne', 'error');
+                } else {
+                    showMessage('Erreur lors de l\'acceptation', 'error');
                 }
                 
-                showMessage('Erreur lors de l\'acceptation', 'error');
+                // Recharger les données pour remettre l'interface à jour
+                await loadFriendRequests();
             }
         }
 
         // Refuser une demande d'amitié
         async function rejectFriendRequest(senderUid) {
             try {
-                // Supprimer des listes de demandes
-                await updateDoc(doc(db, 'users', currentUser.uid), {
-                    'friendRequests.received': arrayRemove(senderUid)
-                });
-
-                await updateDoc(doc(db, 'users', senderUid), {
-                    'friendRequests.sent': arrayRemove(currentUser.uid)
+                console.log('❌ Refus demande d\'amitié de:', senderUid);
+                
+                // Utiliser une transaction pour garantir la cohérence
+                await runTransaction(db, async (transaction) => {
+                    // Lire les documents actuels
+                    const currentUserDoc = await transaction.get(doc(db, 'users', currentUser.uid));
+                    const senderUserDoc = await transaction.get(doc(db, 'users', senderUid));
+                    
+                    if (!currentUserDoc.exists() || !senderUserDoc.exists()) {
+                        throw new Error('Utilisateur non trouvé');
+                    }
+                    
+                    const currentUserData = currentUserDoc.data();
+                    const currentRequests = currentUserData.friendRequests || { sent: [], received: [] };
+                    
+                    if (!(currentRequests.received || []).includes(senderUid)) {
+                        throw new Error('Demande non trouvée');
+                    }
+                    
+                    // Mises à jour atomiques
+                    transaction.update(doc(db, 'users', currentUser.uid), {
+                        'friendRequests.received': arrayRemove(senderUid)
+                    });
+                    
+                    transaction.update(doc(db, 'users', senderUid), {
+                        'friendRequests.sent': arrayRemove(currentUser.uid)
+                    });
                 });
 
                 // Mettre à jour le profil local
@@ -816,8 +881,16 @@
                 await loadFriendRequests();
 
             } catch (error) {
-                console.error('Erreur refus demande:', error);
-                showMessage('Erreur lors du refus', 'error');
+                console.error('❌ Erreur refus demande:', error);
+                
+                if (error.message === 'Demande non trouvée') {
+                    showMessage('Demande non trouvée', 'error');
+                } else {
+                    showMessage('Erreur lors du refus', 'error');
+                }
+                
+                // Recharger les données
+                await loadFriendRequests();
             }
         }
 
@@ -1002,6 +1075,95 @@
                 });
             }
         });
+
+        // Fonction utilitaire pour nettoyer les incohérences (à exécuter au chargement)
+        async function syncFriendRequestsData() {
+            try {
+                console.log('🔄 Synchronisation des demandes d\'amis...');
+                
+                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                if (!userDoc.exists()) return;
+                
+                const userData = userDoc.data();
+                const requests = userData.friendRequests || { sent: [], received: [] };
+                let needsUpdate = false;
+                const updates = {};
+                
+                // Nettoyer les demandes envoyées (vérifier que les destinataires nous ont bien en "received")
+                if (requests.sent && requests.sent.length > 0) {
+                    const validSent = [];
+                    for (const targetUid of requests.sent) {
+                        try {
+                            const targetDoc = await getDoc(doc(db, 'users', targetUid));
+                            if (targetDoc.exists()) {
+                                const targetData = targetDoc.data();
+                                const targetRequests = targetData.friendRequests || { sent: [], received: [] };
+                                
+                                // Vérifier si notre demande est bien dans ses demandes reçues
+                                if ((targetRequests.received || []).includes(currentUser.uid)) {
+                                    validSent.push(targetUid);
+                                } else {
+                                    console.log(`🧹 Demande envoyée orpheline supprimée: ${targetUid}`);
+                                    needsUpdate = true;
+                                }
+                            } else {
+                                console.log(`🧹 Utilisateur inexistant supprimé des demandes envoyées: ${targetUid}`);
+                                needsUpdate = true;
+                            }
+                        } catch (error) {
+                            console.error(`Erreur vérification demande envoyée ${targetUid}:`, error);
+                        }
+                    }
+                    if (validSent.length !== requests.sent.length) {
+                        updates['friendRequests.sent'] = validSent;
+                    }
+                }
+                
+                // Nettoyer les demandes reçues (vérifier que les expéditeurs nous ont bien en "sent")
+                if (requests.received && requests.received.length > 0) {
+                    const validReceived = [];
+                    for (const senderUid of requests.received) {
+                        try {
+                            const senderDoc = await getDoc(doc(db, 'users', senderUid));
+                            if (senderDoc.exists()) {
+                                const senderData = senderDoc.data();
+                                const senderRequests = senderData.friendRequests || { sent: [], received: [] };
+                                
+                                // Vérifier si notre UID est bien dans ses demandes envoyées
+                                if ((senderRequests.sent || []).includes(currentUser.uid)) {
+                                    validReceived.push(senderUid);
+                                } else {
+                                    console.log(`🧹 Demande reçue orpheline supprimée: ${senderUid}`);
+                                    needsUpdate = true;
+                                }
+                            } else {
+                                console.log(`🧹 Utilisateur inexistant supprimé des demandes reçues: ${senderUid}`);
+                                needsUpdate = true;
+                            }
+                        } catch (error) {
+                            console.error(`Erreur vérification demande reçue ${senderUid}:`, error);
+                        }
+                    }
+                    if (validReceived.length !== requests.received.length) {
+                        updates['friendRequests.received'] = validReceived;
+                    }
+                }
+                
+                // Appliquer les corrections si nécessaire
+                if (needsUpdate && Object.keys(updates).length > 0) {
+                    await updateDoc(doc(db, 'users', currentUser.uid), updates);
+                    console.log('✅ Synchronisation des demandes d\'amis terminée avec corrections');
+                    return true; // Indique qu'il y a eu des changements
+                } else {
+                    console.log('✅ Synchronisation des demandes d\'amis terminée - aucune correction nécessaire');
+                    return false;
+                }
+                
+            } catch (error) {
+                console.error('❌ Erreur lors de la synchronisation:', error);
+                return false;
+            }
+        }
 
         // Exposer les fonctions globalement pour les événements onclick
         window.acceptFriendRequest = acceptFriendRequest;
