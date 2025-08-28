@@ -156,7 +156,7 @@ def find_optimal_bars(request):
             return jsonify({"error": "Positions manquantes"}), 400, headers
         
         positions = request_json['positions']
-        max_bars = request_json.get('max_bars', 5)
+        max_bars = request_json.get('max_bars', 8)
         search_radius = min(request_json.get('search_radius', 400), 2500)  # Élargi jusqu'à 2.5km pour permettre les extensions
         
         if len(positions) < 2:
@@ -289,8 +289,8 @@ def calculate_travel_times_batch(bars, positions):
         if not bars or not positions:
             return {}
         
-        # Limiter le nombre de bars pour éviter les timeouts (max 10 bars)
-        limited_bars = bars[:10]
+        # Limiter le nombre de bars pour éviter les timeouts (max 20 bars)
+        limited_bars = bars[:20]
         
         # Grouper les positions par mode de transport
         transport_groups = {}
