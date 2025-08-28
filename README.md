@@ -13,7 +13,7 @@ Application web de géolocalisation sociale pour organiser des sorties entre ami
 
 ## Méthodologie de recherche
 
-L'algorithme de recherche de bars optimaux suit une approche sophistiquée en plusieurs étapes :
+L'algorithme de recherche de bars optimaux utilise une approche **entièrement basée sur l'équilibre des temps de trajet** pour garantir l'équité entre tous les participants :
 
 ### 1. Sélection des participants
 - L'utilisateur choisit les amis qui participent à la sortie
@@ -23,37 +23,50 @@ L'algorithme de recherche de bars optimaux suit une approche sophistiquée en pl
 ### 2. Calcul du point de rencontre optimal
 - **Géocodage** : Conversion des adresses en coordonnées GPS via l'API Geocoding
 - **Centroïde géographique** : Calcul du point central entre toutes les positions
-- **Point optimal** : Moyenne pondérée des coordonnées pour minimiser les distances
+- **Zone de recherche étendue** : Rayon jusqu'à 2,5km pour maximiser les choix
 
-### 3. Recherche des bars dans la zone
-- **Rayon de recherche** : 400 mètres autour du point optimal
-- **API Google Places** : Recherche des établissements de type "bar" dans la zone
-- **Filtrage** : Exclusion des bars fermés ou sans note suffisante
+### 3. Recherche extensive des bars candidats
+- **API Google Places** : Recherche dans un rayon étendu (min. 2km) autour du centre
+- **Filtrage intelligent** : 
+  - Exclusion des hôtels et établissements non-bars
+  - Focus sur les vrais bars/pubs/brasseries
+  - Pré-filtrage par note (≥3.0) si suffisamment de choix
+- **Optimisation candidats** : Limitation à 25 bars max (contrainte API Distance Matrix)
 
 ### 4. Calcul optimisé des temps de trajet
-- **Groupement par mode de transport** : Regroupement des calculs par walking/driving/transit
-- **API Distance Matrix en batch** : Appels groupés pour minimiser la latence
-- **Optimisation des requêtes** : Réduction de 30+ appels individuels à 3-4 appels groupés
-- **Calcul des moyennes** : Temps moyen pondéré pour chaque bar selon les participants
+- **Respect des limites API** : Maximum 25 origines × 25 destinations par requête
+- **Groupement par transport** : Regroupement des calculs par walking/driving/bicycling/transit
+- **Traitement en batch** : Appels API optimisés pour minimiser le nombre de requêtes
+- **Calcul de métriques** :
+  - Temps moyen par bar
+  - Écart entre temps min/max (time_spread)
+  - **Score d'équilibre** : `time_spread / avg_time` (plus bas = plus équitable)
 
-### 5. Classement intelligent
-- **Critère principal** : Temps de trajet moyen croissant (bars les plus rapides d'accès en premier)
-- **Critère secondaire** : Note Google décroissante (à temps égal, les mieux notés sont prioritaires)
-- **Critère tertiaire** : Écart-type des temps croissant (à note égale, ceux avec moins de variabilité sont favorisés)
-- **Résultat** : Les bars optimaux alliant rapidité d'accès, qualité et équité entre participants
+### 5. Nouveau système de classement par équité
+- **Critère prioritaire** : **Score d'équilibre des temps** (croissant)
+  - Favorise les bars où tous arrivent dans des temps similaires
+  - Filtre automatique des bars trop déséquilibrés (>75% du temps moyen)
+- **Critère secondaire** : **Temps de trajet moyen** (croissant)
+  - À équilibre égal, privilégie les bars plus rapides d'accès
+- **Critère tertiaire** : **Note Google** (décroissant)
+  - À temps égal, favorise les bars mieux notés
 
-### 6. Affichage des résultats
-- **Marqueurs personnalisés** : Étoiles fuchsia pour distinguer les bars des amis
-- **Détails expandables** : Temps de trajet détaillé par participant avec icônes de transport (🚶🚗🚲🚌)
-- **Intégration carte** : Centrage automatique et liens vers Google Maps
+### 6. Affichage des résultats optimisés
+- **Indicateurs visuels d'équilibre** :
+  - 🟢 Équilibré : Écart ≤25% du temps moyen
+  - 🟠 Acceptable : Écart 25-50% du temps moyen  
+  - 🔴 Déséquilibré : Écart >50% du temps moyen
+- **Détails par participant** : Temps individuel avec mode de transport
+- **Maximum de résultats** : Jusqu'à 25 bars (optimisé pour les limites API)
 
 ### Optimisations techniques
-- **Performance** : Réduction du temps de réponse de ~15 secondes à ~3 secondes
-- **Cache intelligent** : Évite les recalculs inutiles lors des interactions
-- **Batch processing** : Groupement des appels API pour minimiser la latence
-- **Interface responsive** : Adaptation mobile et desktop avec UX optimisée
+- **Performance** : Algorithme optimisé pour respecter les limites Google Maps API (25×25 max)
+- **Traitement intelligent** : Pré-filtrage des candidats par distance au centre et qualité
+- **Équité garantie** : Système de score d'équilibre pour éviter les temps de trajet déséquilibrés
+- **Batch processing** : Groupement optimal des appels API par mode de transport
+- **Interface responsive** : Indicateurs visuels d'équilibre et détails de temps par participant
 
-Cette approche garantit des recommandations pertinentes en minimisant le temps de trajet total pour tous les participants tout en privilégiant la qualité des établissements.
+Cette approche révolutionnaire **privilégie l'équité entre participants** plutôt que la note absolue des bars, garantissant que personne ne soit désavantagé par un temps de trajet excessif.
 
 ## Technologies
 

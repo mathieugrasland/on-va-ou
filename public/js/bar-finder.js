@@ -286,7 +286,7 @@ export class BarFinder {
                 },
                 body: JSON.stringify({
                     positions: positions,
-                    max_bars: 8,
+                    max_bars: 25,  // Demander le maximum possible avec la limite API
                     search_radius: searchRadius
                 }),
                 signal: controller.signal

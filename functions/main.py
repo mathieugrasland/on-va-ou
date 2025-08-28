@@ -157,7 +157,7 @@ def find_optimal_bars(request):
             return jsonify({"error": "Positions manquantes"}), 400, headers
         
         positions = request_json['positions']
-        max_bars = request_json.get('max_bars', 8)
+        max_bars = request_json.get('max_bars', 25)  # Augmenté pour profiter de la limite API
         search_radius = min(request_json.get('search_radius', 400), 2500)  # Élargi jusqu'à 2.5km pour permettre les extensions
         
         if len(positions) < 2:
@@ -166,46 +166,19 @@ def find_optimal_bars(request):
         start_time = time.time()
         print(f"Début recherche bars pour {len(positions)} positions")
 
-        # Calculer le point central optimal
-        center_lat = statistics.mean([pos['location']['lat'] for pos in positions])
-        center_lng = statistics.mean([pos['location']['lng'] for pos in positions])
-        
-        # Rechercher un grand nombre de bars candidats dans un rayon plus large
+        # Calculer une zone de recherche optimisée basée sur la géométrie du groupe
         search_start = time.time()
-        extended_radius = max(search_radius * 2, 2000)  # Minimum 2km pour avoir plus de choix
-        candidate_bars = search_bars_nearby(center_lat, center_lng, extended_radius, max_bars=50)  # Optimisé pour limite 25
+        candidate_bars, center_lat, center_lng = search_bars_optimized_zone(positions, search_radius)
         search_time = time.time() - search_start
         print(f"Recherche bars terminée: {len(candidate_bars)} bars trouvés en {search_time:.2f}s")
         
         if not candidate_bars:
-            return jsonify({"error": "Aucun bar trouvé dans la zone étendue"}), 404, headers
+            return jsonify({"error": "Aucun bar trouvé dans la zone optimisée"}), 404, headers
         
-        # Pré-filtrage des bars pour optimiser les calculs
-        filter_start = time.time()
-        # 1. Filtrer par note d'abord (optionnel mais améliore la qualité)
-        quality_filtered_bars = []
-        for bar in candidate_bars:
-            # Garder les bars avec une note décente OU sans note (nouveaux bars)
-            if not bar.get('rating') or bar.get('rating') >= 3.0:
-                quality_filtered_bars.append(bar)
-        
-        # Si pas assez de bars avec notes, prendre tous les candidats
-        if len(quality_filtered_bars) < 20:
-            quality_filtered_bars = candidate_bars
-        
-        # 2. Prioriser les bars les plus proches du centre pour optimiser les temps
-        for bar in quality_filtered_bars:
-            bar_location = bar['geometry']['location']
-            # Calculer distance approximative au centre
-            distance_to_center = ((bar_location['lat'] - center_lat) ** 2 + 
-                                 (bar_location['lng'] - center_lng) ** 2) ** 0.5
-            bar['_distance_to_center'] = distance_to_center
-        
-        # Trier par distance au centre et limiter à 25 bars (limite API)
-        quality_filtered_bars.sort(key=lambda x: x['_distance_to_center'])
-        final_candidate_bars = quality_filtered_bars[:25]  # Limite API 25 destinations max
-        filter_time = time.time() - filter_start
-        print(f"Filtrage terminé: {len(final_candidate_bars)} bars retenus en {filter_time:.2f}s")
+        # Les bars sont déjà optimisés et filtrés par la nouvelle fonction
+        # Limitation finale à 25 bars maximum pour respecter l'API
+        final_candidate_bars = candidate_bars[:25]
+        print(f"Bars finaux sélectionnés: {len(final_candidate_bars)} bars pour calcul des temps")
         
         # Calculer les temps de trajet pour les bars sélectionnés
         travel_start = time.time()
@@ -246,23 +219,23 @@ def find_optimal_bars(request):
         if not bars_with_times:
             return jsonify({"error": "Impossible de calculer les temps de trajet"}), 500, headers
         
-        # Nouveau système de scoring basé uniquement sur les temps de trajet
-        # 1. Filtrer les bars avec un déséquilibre trop important (> 50% du temps moyen)
-        balanced_bars = [bar for bar in bars_with_times if bar['time_balance_score'] <= 0.5]
+        # Nouveau système de scoring basé sur l'équilibre des temps de trajet
+        # 1. Filtrer les bars avec un déséquilibre trop important (> 75% du temps moyen)
+        balanced_bars = [bar for bar in bars_with_times if bar['time_balance_score'] <= 0.75]
         
         # Si pas assez de bars équilibrés, prendre les meilleurs même s'ils sont déséquilibrés
         if len(balanced_bars) < max_bars:
             balanced_bars = bars_with_times
         
-        # 2. Trier par temps moyen croissant (priorité absolue)
-        # Puis par score de déséquilibre croissant (pour départager)
+        # 2. Nouveau tri : écart de temps (croissant) -> temps moyen (croissant) -> note (décroissant)
         balanced_bars.sort(key=lambda x: (
-            x['avg_travel_time'],          # Temps moyen croissant (priorité 1)
-            x['time_balance_score']        # Déséquilibre croissant (priorité 2)
+            x['time_balance_score'],       # Équilibre croissant (priorité 1) - plus équilibré = mieux
+            x['avg_travel_time'],          # Temps moyen croissant (priorité 2) - plus court = mieux
+            -x['rating'] if x['rating'] else -1  # Note décroissante (priorité 3) - meilleure note = mieux
         ))
         
-        # Prendre les 8 meilleurs bars
-        best_bars = balanced_bars[:max_bars]
+        # Retourner autant de bars que possible (jusqu'à 25 avec la limite API)
+        best_bars = balanced_bars[:min(max_bars, len(balanced_bars))]
         
         total_time = time.time() - start_time
         print(f"Recherche complète terminée en {total_time:.2f}s - {len(best_bars)} bars retournés")
@@ -280,6 +253,102 @@ def find_optimal_bars(request):
     except Exception as e:
         print(f"ERROR: Exception non gérée dans find_optimal_bars: {e}")
         return jsonify({"error": "Erreur interne du serveur"}), 500, headers
+
+
+def search_bars_optimized_zone(positions, base_radius):
+    """Recherche des bars dans une zone optimisée basée sur la géométrie du groupe"""
+    try:
+        # 1. Analyser la dispersion géographique du groupe
+        lats = [pos['location']['lat'] for pos in positions]
+        lngs = [pos['location']['lng'] for pos in positions]
+        
+        # Calculer les limites géographiques du groupe
+        min_lat, max_lat = min(lats), max(lats)
+        min_lng, max_lng = min(lngs), max(lngs)
+        
+        # Calculer la dispersion du groupe (distance max entre participants)
+        max_distance = 0
+        for i in range(len(positions)):
+            for j in range(i + 1, len(positions)):
+                lat1, lng1 = positions[i]['location']['lat'], positions[i]['location']['lng']
+                lat2, lng2 = positions[j]['location']['lat'], positions[j]['location']['lng']
+                # Distance euclidienne approximative (suffisante pour la comparaison)
+                distance = ((lat2 - lat1) ** 2 + (lng2 - lng1) ** 2) ** 0.5
+                max_distance = max(max_distance, distance)
+        
+        # 2. Calculer le point central pondéré (geometric median approximé)
+        center_lat = statistics.mean(lats)
+        center_lng = statistics.mean(lngs)
+        
+        # Affiner le centre en calculant le point qui minimise la somme des distances
+        # (Algorithme de Weiszfeld simplifié)
+        for iteration in range(3):  # Quelques itérations suffisent
+            total_weight = 0
+            weighted_lat = 0
+            weighted_lng = 0
+            
+            for pos in positions:
+                lat, lng = pos['location']['lat'], pos['location']['lng']
+                # Distance au centre actuel
+                dist = ((lat - center_lat) ** 2 + (lng - center_lng) ** 2) ** 0.5
+                if dist > 0:
+                    weight = 1 / dist  # Poids inversement proportionnel à la distance
+                    weighted_lat += lat * weight
+                    weighted_lng += lng * weight
+                    total_weight += weight
+            
+            if total_weight > 0:
+                center_lat = weighted_lat / total_weight
+                center_lng = weighted_lng / total_weight
+        
+        # 3. Calculer un rayon adaptatif basé sur la dispersion
+        # Le rayon doit couvrir une zone où tous peuvent se retrouver équitablement
+        group_span_km = max_distance * 111  # Conversion approximative degrés -> km
+        adaptive_radius = max(
+            base_radius,
+            group_span_km * 300,  # 30% de la distance max du groupe
+            800  # Minimum 800m pour avoir des choix
+        )
+        adaptive_radius = min(adaptive_radius, 2000)  # Maximum 2km pour éviter trop de dispersion
+        
+        print(f"Zone optimisée: centre=({center_lat:.4f},{center_lng:.4f}), rayon={adaptive_radius:.0f}m, dispersion_groupe={group_span_km:.1f}km")
+        
+        # 4. Rechercher dans la zone optimisée
+        candidate_bars = search_bars_nearby(center_lat, center_lng, adaptive_radius, max_bars=50)
+        
+        # 5. Filtrage supplémentaire basé sur la distance aux participants extrêmes
+        if len(candidate_bars) > 25:  # Si trop de candidats, filtrer plus finement
+            # Calculer pour chaque bar sa distance aux participants les plus éloignés
+            filtered_bars = []
+            for bar in candidate_bars:
+                bar_lat = bar['geometry']['location']['lat']
+                bar_lng = bar['geometry']['location']['lng']
+                
+                # Calculer la distance max du bar à tous les participants
+                max_distance_to_participants = 0
+                for pos in positions:
+                    participant_lat = pos['location']['lat']
+                    participant_lng = pos['location']['lng']
+                    distance = ((bar_lat - participant_lat) ** 2 + 
+                               (bar_lng - participant_lng) ** 2) ** 0.5
+                    max_distance_to_participants = max(max_distance_to_participants, distance)
+                
+                bar['_max_distance_to_participants'] = max_distance_to_participants
+                filtered_bars.append(bar)
+            
+            # Trier par distance maximale aux participants (plus équitable)
+            filtered_bars.sort(key=lambda x: x['_max_distance_to_participants'])
+            candidate_bars = filtered_bars[:25]  # Limiter à 25 pour l'API
+        
+        return candidate_bars, center_lat, center_lng
+        
+    except Exception as e:
+        print(f"Erreur recherche optimisée: {e}")
+        # Fallback vers l'ancienne méthode
+        center_lat = statistics.mean([pos['location']['lat'] for pos in positions])
+        center_lng = statistics.mean([pos['location']['lng'] for pos in positions])
+        bars = search_bars_nearby(center_lat, center_lng, max(base_radius * 2, 2000), max_bars=25)
+        return bars, center_lat, center_lng
 
 
 def search_bars_nearby(lat, lng, radius, max_bars=50):
