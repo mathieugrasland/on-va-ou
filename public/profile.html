@@ -595,6 +595,8 @@
         // Charger les demandes d'amitié
         async function loadFriendRequests() {
             try {
+                console.log('🔍 Chargement des demandes d\'amis...');
+                
                 // Demandes reçues
                 const receivedContainer = document.getElementById('received-requests');
                 const sentContainer = document.getElementById('sent-requests');
@@ -616,6 +618,11 @@
                     if (!userProfile.friendRequests.sent) userProfile.friendRequests.sent = [];
                     if (!userProfile.friendRequests.received) userProfile.friendRequests.received = [];
                 }
+                
+                console.log('📊 Données des demandes d\'amis:', {
+                    sent: userProfile.friendRequests.sent,
+                    received: userProfile.friendRequests.received
+                });
                 
                 if (userProfile.friendRequests) {
                     // Demandes reçues
@@ -1137,8 +1144,16 @@
                 let needsUpdate = false;
                 const updates = {};
                 
+                console.log('🔍 Données actuelles des demandes:', requests);
+                
+                // DÉSACTIVER temporairement la synchronisation agressive pour debug
+                // Les demandes seront conservées même si il y a des incohérences
+                console.log('⚠️ Synchronisation agressive désactivée pour debug');
+                return false;
+                
                 // Nettoyer les demandes envoyées (vérifier que les destinataires nous ont bien en "received")
                 if (requests.sent && requests.sent.length > 0) {
+                    console.log('🔍 Vérification des demandes envoyées:', requests.sent);
                     const validSent = [];
                     for (const targetUid of requests.sent) {
                         try {
@@ -1146,6 +1161,11 @@
                             if (targetDoc.exists()) {
                                 const targetData = targetDoc.data();
                                 const targetRequests = targetData.friendRequests || { sent: [], received: [] };
+                                
+                                console.log(`🔍 Vérification pour ${targetUid}:`, {
+                                    targetRequests,
+                                    hasOurRequest: (targetRequests.received || []).includes(currentUser.uid)
+                                });
                                 
                                 // Vérifier si notre demande est bien dans ses demandes reçues
                                 if ((targetRequests.received || []).includes(currentUser.uid)) {
@@ -1169,6 +1189,7 @@
                 
                 // Nettoyer les demandes reçues (vérifier que les expéditeurs nous ont bien en "sent")
                 if (requests.received && requests.received.length > 0) {
+                    console.log('🔍 Vérification des demandes reçues:', requests.received);
                     const validReceived = [];
                     for (const senderUid of requests.received) {
                         try {
@@ -1176,6 +1197,11 @@
                             if (senderDoc.exists()) {
                                 const senderData = senderDoc.data();
                                 const senderRequests = senderData.friendRequests || { sent: [], received: [] };
+                                
+                                console.log(`🔍 Vérification pour ${senderUid}:`, {
+                                    senderRequests,
+                                    hasOurRequest: (senderRequests.sent || []).includes(currentUser.uid)
+                                });
                                 
                                 // Vérifier si notre UID est bien dans ses demandes envoyées
                                 if ((senderRequests.sent || []).includes(currentUser.uid)) {
