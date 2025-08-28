@@ -50,6 +50,28 @@
         .nav-right {
             display: flex;
             align-items: center;
+            gap: 10px;
+        }
+
+        .nav-update {
+            background: none;
+            border: none;
+            color: #2196F3;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 8px;
+            border-radius: 12px;
+            min-width: 36px;
+            min-height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .nav-update:hover {
+            background: rgba(33, 150, 243, 0.1);
+            transform: scale(1.05) rotate(180deg);
         }
 
         .nav-icon {
@@ -298,6 +320,9 @@
     
     <!-- Firebase App (the core Firebase SDK) -->
     <script type="module">
+        // Import du gestionnaire de mises à jour
+        import './js/update-manager.js';
+        
         import { auth, db } from './firebase-config.js';
         import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
         import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, arrayUnion, arrayRemove, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -1201,6 +1226,7 @@
                 <span class="nav-icon nav-current" title="Profil">👤</span>
             </div>
             <div class="nav-right">
+                <button onclick="updateManager.forceCheck()" class="nav-update" title="Vérifier les mises à jour">🔄</button>
                 <button onclick="logout()" class="nav-logout" title="Déconnexion">🚪</button>
             </div>
         </nav>
