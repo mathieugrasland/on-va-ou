@@ -217,6 +217,13 @@ export class SecureMapManager {
         this.friendMarkers.push({ marker, friendId, name, color });
     }
 
+    // Centrer la carte sur un ami spécifique
+    centerOnFriend(friendId) {
+        const friendMarker = this.friendMarkers.find(fm => fm.friendId === friendId);
+        if (friendMarker && this.map) {
+            this.map.panTo(friendMarker.marker.getPosition()); // Zoom plus proche pour mieux voir
+        }
+    }
 
     clearMarkers() {
         if (this.userMarker) {

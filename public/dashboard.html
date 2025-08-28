@@ -477,7 +477,7 @@
 
                         if (friendDoc.exists()) {
                             const friendData = friendDoc.data();
-                            const friendCard = createFriendCard(friendData, i);
+                            const friendCard = createFriendCard(friendData, i, friendId);
                             friendsList.appendChild(friendCard);
                         }
                     } catch (error) {
@@ -491,18 +491,25 @@
             }
         }
 
-        // Créer une carte d'ami ultra-simplifiée
-        function createFriendCard(friendData, index) {
+        // Créer une carte d'ami ultra-simplifiée avec clic pour centrer la carte
+        function createFriendCard(friendData, index, friendId) {
             const card = document.createElement('div');
             card.className = 'friend-card';
 
             const color = FRIEND_COLORS[index % FRIEND_COLORS.length];
 
             card.innerHTML = `
-                <div class="friend-name" style="color: ${color};">
+                <div class="friend-name" style="color: ${color}; cursor: pointer;">
                     ${friendData.firstName || 'Ami'}
                 </div>
             `;
+
+            // Ajouter l'événement de clic pour centrer la carte
+            card.addEventListener('click', () => {
+                if (secureMapManager) {
+                    secureMapManager.centerOnFriend(friendId);
+                }
+            });
 
             return card;
         }
