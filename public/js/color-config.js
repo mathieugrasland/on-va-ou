@@ -18,7 +18,6 @@ export const INTERFACE_COLORS = {
 // Cette palette respecte l'harmonie avec les couleurs de l'interface
 // tout en offrant une bonne visibilité sur les cartes
 export const FRIEND_COLORS = [
-    '#5d4037', // Marron (cohérent avec l'interface)
     '#ad1457', // Rose bordeaux
     '#00695c', // Vert émeraude
     '#b65b00ff', // Ambre doré
@@ -28,6 +27,7 @@ export const FRIEND_COLORS = [
     '#d84315', // Rouge terre cuite moderne
     '#7b1fa2', // Violet profond
     '#ef6c00', // Orange brûlé
+    '#251c19ff', // Marron (cohérent avec l'interface)
 ];
 
 // Couleurs spéciales pour les statuts
