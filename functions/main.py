@@ -207,8 +207,12 @@ def find_optimal_bars(request):
         if not bars_with_times:
             return jsonify({"error": "Impossible de calculer les temps de trajet"}), 500, headers
         
-        # Trier par note d'abord (décroissant), puis par temps moyen (croissant)
-        bars_with_times.sort(key=lambda x: (-x['rating'], x['avg_travel_time']))
+        # Nouveau tri : temps moyen (croissant) -> note (décroissant) -> écart-type temps (croissant)
+        bars_with_times.sort(key=lambda x: (
+            x['avg_travel_time'],          # Temps moyen croissant (priorité 1)
+            -x['rating'] if x['rating'] else 0,  # Note décroissante (priorité 2)
+            x['time_variance']             # Écart-type croissant (priorité 3)
+        ))
         
         # Prendre les meilleurs bars
         best_bars = bars_with_times[:max_bars]

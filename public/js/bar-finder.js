@@ -28,6 +28,19 @@ export class BarFinder {
     }
 
     /**
+     * Retourne l'icône correspondant au mode de transport
+     */
+    getTransportIcon(transportMode) {
+        const icons = {
+            'walking': '🚶',
+            'driving': '🚗',
+            'bicycling': '🚲',
+            'transit': '🚌'
+        };
+        return icons[transportMode] || '🚶'; // Par défaut : piéton
+    }
+
+    /**
      * Gère la sélection/déselection d'un ami
      */
     toggleFriendSelection(friendId, friendCard) {
@@ -312,8 +325,11 @@ export class BarFinder {
                 // Utiliser "Moi" pour l'utilisateur actuel
                 const displayName = position.id === this.currentUser.uid ? 'Moi' : position.name;
                 
+                // Obtenir l'icône du mode de transport
+                const transportIcon = this.getTransportIcon(position.transportMode);
+                
                 timeEl.innerHTML = `
-                    <span class="person-name">${displayName}</span>
+                    <span class="person-name">${transportIcon} ${displayName}</span>
                     <span class="travel-time">⏱️ ${Math.round(time)} min</span>
                 `;
                 
