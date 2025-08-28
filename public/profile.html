@@ -41,50 +41,65 @@
             align-items: center;
         }
 
-        .nav-brand h1 {
-            margin: 0;
-            color: var(--primary-color);
-            font-weight: 600;
-            font-size: 24px;
-            cursor: pointer;
-            transition: color 0.3s ease;
-        }
-
-        .nav-brand h1:hover {
-            color: var(--accent-color);
-        }
-
-        .nav-actions {
+        .nav-left {
             display: flex;
             align-items: center;
             gap: 20px;
         }
 
-        .nav-link {
-            color: var(--primary-color);
-            font-weight: 600;
-            font-size: 18px;
-            text-decoration: none;
-            cursor: pointer;
-            transition: color 0.3s ease;
+        .nav-right {
+            display: flex;
+            align-items: center;
         }
 
-        .nav-link:hover {
-            color: var(--accent-color);
+        .nav-icon {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            min-height: 40px;
+        }
+
+        .nav-icon:hover {
+            background: rgba(93, 64, 55, 0.1);
+            transform: scale(1.05);
+        }
+
+        .nav-current {
+            background: rgba(93, 64, 55, 0.15);
+            cursor: default;
+        }
+
+        .nav-current:hover {
+            transform: none;
         }
 
         .nav-logout {
             background: none;
             border: none;
             color: #EA4335;
-            font-size: 20px;
+            font-size: 24px;
             cursor: pointer;
-            transition: color 0.3s ease;
-            padding: 5px;
+            transition: all 0.3s ease;
+            padding: 8px;
+            border-radius: 12px;
+            min-width: 40px;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .nav-logout:hover {
-            color: #D33B2C;
+            background: rgba(234, 67, 53, 0.1);
+            transform: scale(1.05);
         }
 
         /* Container principal responsive */
@@ -258,16 +273,20 @@
                 padding: 10px 15px;
             }
 
-            .nav-brand h1 {
-                font-size: 20px;
-            }
-
-            .nav-actions {
+            .nav-left {
                 gap: 15px;
             }
 
-            .nav-link {
-                font-size: 16px;
+            .nav-icon {
+                font-size: 20px;
+                min-width: 36px;
+                min-height: 36px;
+            }
+
+            .nav-logout {
+                font-size: 20px;
+                min-width: 36px;
+                min-height: 36px;
             }
 
             .button, .button-secondary, .button-logout {
@@ -1177,11 +1196,11 @@
         
         <!-- Header commun -->
         <nav class="navbar">
-            <div class="nav-brand">
-                <h1 onclick="window.location.href='dashboard.html'">On va où ?</h1>
+            <div class="nav-left">
+                <button onclick="window.location.href='dashboard.html'" class="nav-icon" title="Accueil">🏠</button>
+                <span class="nav-icon nav-current" title="Profil">👤</span>
             </div>
-            <div class="nav-actions">
-                <span class="nav-link">Profil</span>
+            <div class="nav-right">
                 <button onclick="logout()" class="nav-logout" title="Déconnexion">🚪</button>
             </div>
         </nav>
