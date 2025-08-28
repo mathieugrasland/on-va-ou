@@ -221,6 +221,58 @@ export class SecureMapManager {
         }
     }
 
+    /**
+     * Charge seulement les amis sélectionnés pour la recherche de bars
+     */
+    async loadSelectedFriendsLocations(selectedFriendIds) {
+        try {
+            if (!this.isInitialized || !this.map) {
+                throw new Error('Carte non initialisée');
+            }
+
+            // Effacer les marqueurs d'amis existants
+            this.clearFriendMarkers();
+
+            const user = this.auth?.currentUser;
+            if (!user || !this.db) return;
+
+            console.log(`Chargement des positions pour ${selectedFriendIds.length} amis sélectionnés`);
+
+            // Charger les positions des amis sélectionnés uniquement
+            for (const friendId of selectedFriendIds) {
+                try {
+                    const friendDoc = await getDoc(doc(this.db, 'users', friendId));
+                    if (!friendDoc.exists()) continue;
+
+                    const friendData = friendDoc.data();
+                    
+                    // Utiliser les coordonnées stockées
+                    const friendLocation = friendData.location || friendData.coordinates;
+                    if (friendLocation && friendLocation.lat && friendLocation.lng) {
+                        const location = {
+                            lat: friendLocation.lat,
+                            lng: friendLocation.lng
+                        };
+                        this.addFriendMarker(location, friendData.firstName || 'Ami', friendId);
+                    } else if (friendData.address) {
+                        // Géocoder si nécessaire
+                        try {
+                            const location = await this.geocodingService.geocodeAddress(friendData.address);
+                            this.addFriendMarker(location, friendData.firstName || 'Ami', friendId);
+                        } catch (error) {
+                            console.error(`Erreur géocodage ami ${friendId}:`, error);
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Erreur chargement ami ${friendId}:`, error);
+                }
+            }
+
+        } catch (error) {
+            console.error('Erreur chargement positions amis sélectionnés:', error);
+        }
+    }
+
     addUserMarker(location, name) {
         if (this.userMarker) {
             this.userMarker.setMap(null);
@@ -296,6 +348,18 @@ export class SecureMapManager {
 
         this.friendMarkers.forEach(({ marker }) => marker.setMap(null));
         this.friendMarkers = [];
+    }
+
+    /**
+     * Efface seulement les marqueurs d'amis (pas l'utilisateur ou les bars)
+     */
+    clearFriendMarkers() {
+        if (this.friendMarkers) {
+            this.friendMarkers.forEach(({ marker }) => {
+                if (marker) marker.setMap(null);
+            });
+            this.friendMarkers = [];
+        }
     }
 
     /**

@@ -254,6 +254,7 @@ def search_bars_nearby(lat, lng, radius):
             'location': f"{lat},{lng}",
             'radius': radius,
             'type': 'bar',
+            'keyword': 'bar pub cocktail bière',  # Mots-clés pour cibler les vrais bars
             'key': GOOGLE_MAPS_API_KEY,
             'language': 'fr'
         }
@@ -263,7 +264,32 @@ def search_bars_nearby(lat, lng, radius):
         data = response.json()
         
         if data['status'] == 'OK':
-            return data['results']
+            # Filtrer pour exclure les hôtels et autres établissements
+            filtered_bars = []
+            for place in data['results']:
+                place_types = place.get('types', [])
+                place_name = place.get('name', '').lower()
+                
+                # Exclure si c'est un hôtel ou contient des mots-clés d'hôtel
+                is_hotel = ('lodging' in place_types or 
+                           'hotel' in place_name or 
+                           'hôtel' in place_name or
+                           'auberge' in place_name or
+                           'resort' in place_name)
+                
+                # Inclure seulement si c'est vraiment un bar
+                is_real_bar = ('bar' in place_types or 
+                              'night_club' in place_types or
+                              'bar' in place_name or 
+                              'pub' in place_name or
+                              'café' in place_name or
+                              'brasserie' in place_name)
+                
+                if is_real_bar and not is_hotel:
+                    filtered_bars.append(place)
+            
+            print(f"Bars filtrés: {len(filtered_bars)} sur {len(data['results'])} résultats")
+            return filtered_bars
         else:
             print(f"Places API error: {data['status']}")
             return []

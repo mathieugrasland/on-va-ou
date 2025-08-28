@@ -102,7 +102,7 @@ export class BarFinder {
             if (bars && bars.length > 0) {
                 statusEl.textContent = `${bars.length} bar(s) bien noté(s) trouvé(s) !`;
                 this.displayBars(bars);
-                this.showBarsOnMap(bars);
+                await this.showBarsOnMap(bars);
             } else {
                 throw new Error('Aucun bar bien noté trouvé dans un rayon de 600m');
             }
@@ -301,8 +301,15 @@ export class BarFinder {
     /**
      * Affiche les bars sur la carte
      */
-    showBarsOnMap(bars) {
+    async showBarsOnMap(bars) {
         if (this.mapManager && this.mapManager.addBarMarkers) {
+            // Charger seulement les amis sélectionnés sur la carte
+            if (this.mapManager.loadSelectedFriendsLocations) {
+                const selectedFriendIds = Array.from(this.selectedFriends);
+                await this.mapManager.loadSelectedFriendsLocations(selectedFriendIds);
+            }
+            
+            // Puis afficher les bars
             this.mapManager.addBarMarkers(bars);
         }
     }
