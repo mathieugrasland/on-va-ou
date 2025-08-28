@@ -82,11 +82,11 @@ export class SecureMapManager {
             }
 
             console.log('Initialisation de la carte...');
-            // Position par défaut (Paris)
+            // Position par défaut (Paris) avec un zoom légèrement dézooomé
             const defaultPosition = { lat: 48.8566, lng: 2.3522 };
 
             this.map = new google.maps.Map(mapElement, {
-                zoom: 12,
+                zoom: 11, // Zoom légèrement réduit (était 12)
                 center: defaultPosition,
                 mapTypeId: 'roadmap',
                 mapTypeControl: false,
@@ -128,7 +128,7 @@ export class SecureMapManager {
                 try {
                     const location = await this.geocodingService.geocodeAddress(userData.address);
                     this.addUserMarker(location, userData.firstName || 'Vous');
-                    this.map.setCenter(location);
+                    // La carte reste centrée sur Paris (pas de recentrage automatique)
                 } catch (error) {
                     console.error('Erreur chargement position utilisateur:', error);
                 }
@@ -175,7 +175,7 @@ export class SecureMapManager {
                 strokeColor: '#ffffff',
                 strokeWeight: 2,
                 strokeOpacity: 1,
-                labelOrigin: new google.maps.Point(0, -3) // Décale le label au-dessus
+                labelOrigin: new google.maps.Point(0, -2) // Décale le label au-dessus
             },
             label: {
                 text: name,
@@ -203,7 +203,7 @@ export class SecureMapManager {
                 strokeColor: '#ffffff',
                 strokeWeight: 2,
                 strokeOpacity: 1,
-                labelOrigin: new google.maps.Point(0, -3) // Décale le label au-dessus
+                labelOrigin: new google.maps.Point(0, -2) // Décale le label au-dessus
             },
             label: {
                 text: name,
