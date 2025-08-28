@@ -497,6 +497,45 @@ export class BarFinder {
     }
 
     /**
+     * Affiche les détails d'un bar sélectionné depuis la carte
+     */
+    showBarDetailsInMap(placeId) {
+        // Trouver le bar dans la liste
+        const barIndex = this.bars.findIndex(bar => bar.place_id === placeId);
+        if (barIndex === -1) return;
+        
+        // Fermer toutes les InfoWindows
+        if (this.mapManager && this.mapManager.closeAllBarInfoWindows) {
+            this.mapManager.closeAllBarInfoWindows();
+        }
+        
+        // Faire défiler vers la liste et afficher les détails
+        const barsResults = document.getElementById('bars-results');
+        if (barsResults) {
+            barsResults.scrollIntoView({ behavior: 'smooth' });
+            
+            // Attendre que le scroll soit terminé puis ouvrir les détails
+            setTimeout(() => {
+                this.toggleBarDetails(barIndex);
+                
+                // Highlight temporairement la carte du bar
+                const barCard = document.querySelector(`.bar-card:nth-child(${barIndex + 1})`);
+                if (barCard) {
+                    barCard.style.border = '2px solid #ff9800';
+                    barCard.style.boxShadow = '0 4px 12px rgba(255, 152, 0, 0.3)';
+                    barCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    // Retirer le highlight après 3 secondes
+                    setTimeout(() => {
+                        barCard.style.border = '';
+                        barCard.style.boxShadow = '';
+                    }, 3000);
+                }
+            }, 800);
+        }
+    }
+
+    /**
      * Affiche un message à l'utilisateur
      */
     showMessage(text, type = 'info') {

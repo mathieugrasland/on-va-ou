@@ -186,20 +186,35 @@ def find_optimal_bars(request):
         travel_time = time.time() - travel_start
         print(f"Calcul temps de trajet terminé: {len(travel_times_results)} bars avec temps en {travel_time:.2f}s")
         
-        # Construire la liste des bars avec leurs métriques de temps de trajet
+        # Identifier les clusters de participants proches pour pondérer le scoring
+        participant_clusters = cluster_nearby_participants(positions, distance_threshold_km=0.6)
+        
+        # Construire la liste des bars avec leurs métriques de temps de trajet pondérées
         bars_with_times = []
         for bar_idx, travel_times in travel_times_results.items():
             bar = final_candidate_bars[bar_idx]
             
-            # Calculer les métriques de temps
-            avg_time = statistics.mean(travel_times)
-            max_time = max(travel_times)
-            min_time = min(travel_times)
-            time_spread = max_time - min_time  # Écart entre le plus long et le plus court
+            # Calculer les temps de trajet consolidés par cluster
+            cluster_travel_times = []
+            for cluster in participant_clusters:
+                # Pour chaque cluster, prendre le temps moyen des participants du cluster
+                cluster_times = [travel_times[participant_idx] for participant_idx in cluster]
+                cluster_avg_time = statistics.mean(cluster_times)
+                cluster_travel_times.append(cluster_avg_time)
             
-            # Calculer un score de déséquilibre (plus c'est bas, mieux c'est)
-            # Si tous les temps sont similaires, le déséquilibre est faible
+            # Calculer les métriques basées sur les clusters (pas les participants individuels)
+            avg_time = statistics.mean(cluster_travel_times)
+            max_time = max(cluster_travel_times)
+            min_time = min(cluster_travel_times)
+            time_spread = max_time - min_time  # Écart entre clusters, pas entre individus
+            
+            # Score d'équilibre basé sur les clusters
             time_balance_score = time_spread / avg_time if avg_time > 0 else float('inf')
+            
+            # Garder aussi les temps individuels pour l'affichage
+            individual_avg_time = statistics.mean(travel_times)
+            individual_max_time = max(travel_times)
+            individual_min_time = min(travel_times)
             
             bars_with_times.append({
                 'name': bar['name'],
@@ -208,12 +223,16 @@ def find_optimal_bars(request):
                 'rating': bar.get('rating'),
                 'price_level': bar.get('price_level'),
                 'place_id': bar['place_id'],
-                'travel_times': travel_times,
-                'avg_travel_time': avg_time,
-                'max_travel_time': max_time,
-                'min_travel_time': min_time,
-                'time_spread': time_spread,
-                'time_balance_score': time_balance_score
+                'travel_times': travel_times,  # Temps individuels pour l'affichage
+                'cluster_travel_times': cluster_travel_times,  # Temps par cluster pour le scoring
+                'avg_travel_time': avg_time,  # Moyenne des clusters (pour le tri)
+                'max_travel_time': max_time,  # Max des clusters
+                'min_travel_time': min_time,  # Min des clusters
+                'time_spread': time_spread,  # Écart entre clusters
+                'time_balance_score': time_balance_score,  # Score basé sur clusters
+                'individual_avg_time': individual_avg_time,  # Pour info/affichage
+                'individual_max_time': individual_max_time,  # Pour info/affichage
+                'individual_min_time': individual_min_time   # Pour info/affichage
             })
         
         if not bars_with_times:
@@ -238,12 +257,13 @@ def find_optimal_bars(request):
         best_bars = balanced_bars[:min(max_bars, len(balanced_bars))]
         
         total_time = time.time() - start_time
-        print(f"Recherche complète terminée en {total_time:.2f}s - {len(best_bars)} bars retournés")
+        print(f"Recherche complète terminée en {total_time:.2f}s - {len(best_bars)} bars retournés (scoring basé sur {len(participant_clusters)} clusters)")
         
         return jsonify({
             "success": True,
             "bars": best_bars,
-            "center_point": {"lat": center_lat, "lng": center_lng}
+            "center_point": {"lat": center_lat, "lng": center_lng},
+            "participant_clusters": len(participant_clusters)  # Info pour debug
         }), 200, headers
 
     except auth.InvalidIdTokenError as e:
@@ -253,6 +273,55 @@ def find_optimal_bars(request):
     except Exception as e:
         print(f"ERROR: Exception non gérée dans find_optimal_bars: {e}")
         return jsonify({"error": "Erreur interne du serveur"}), 500, headers
+
+
+def cluster_nearby_participants(positions, distance_threshold_km=0.6):
+    """Regroupe les participants qui sont à moins de distance_threshold_km les uns des autres"""
+    try:
+        clusters = []
+        assigned = [False] * len(positions)
+        
+        for i, pos in enumerate(positions):
+            if assigned[i]:
+                continue
+                
+            # Créer un nouveau cluster avec cette position
+            cluster = [i]
+            assigned[i] = True
+            
+            # Chercher toutes les positions à moins de 600m de celle-ci
+            lat1, lng1 = pos['location']['lat'], pos['location']['lng']
+            
+            for j, other_pos in enumerate(positions):
+                if assigned[j] or i == j:
+                    continue
+                    
+                lat2, lng2 = other_pos['location']['lat'], other_pos['location']['lng']
+                
+                # Calcul distance approximative en km (formule euclidienne simple)
+                # 1 degré ≈ 111 km à nos latitudes
+                lat_diff = (lat2 - lat1) * 111
+                lng_diff = (lng2 - lng1) * 111 * 0.64  # Correction longitude pour latitude française ~46°
+                distance_km = (lat_diff ** 2 + lng_diff ** 2) ** 0.5
+                
+                if distance_km <= distance_threshold_km:
+                    cluster.append(j)
+                    assigned[j] = True
+            
+            clusters.append(cluster)
+        
+        print(f"Clustering participants: {len(clusters)} groupes formés à partir de {len(positions)} participants")
+        for i, cluster in enumerate(clusters):
+            if len(cluster) > 1:
+                names = [positions[idx].get('name', f'Participant {idx}') for idx in cluster]
+                print(f"  Groupe {i+1}: {len(cluster)} participants proches - {', '.join(names)}")
+        
+        return clusters
+        
+    except Exception as e:
+        print(f"Erreur clustering: {e}")
+        # Fallback: chaque participant est son propre cluster
+        return [[i] for i in range(len(positions))]
 
 
 def search_bars_optimized_zone(positions, base_radius):

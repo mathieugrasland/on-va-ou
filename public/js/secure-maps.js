@@ -424,21 +424,47 @@ export class SecureMapManager {
     createBarInfoWindowContent(bar) {
         const rating = bar.rating ? bar.rating.toFixed(1) : 'N/A';
         const avgTime = Math.round(bar.avg_travel_time);
+        const timeSpread = Math.round(bar.time_spread || 0);
+        
+        // Créer un indicateur de déséquilibre identique à la liste
+        let balanceIndicator = '';
+        const balanceScore = bar.time_balance_score || 0;
+        if (balanceScore <= 0.2) {
+            balanceIndicator = '<span style="color: #4caf50; font-weight: bold;">⚖️ Équilibré</span>';
+        } else if (balanceScore <= 0.5) {
+            balanceIndicator = '<span style="color: #ff9800; font-weight: bold;">⚖️ Correct</span>';
+        } else {
+            balanceIndicator = '<span style="color: #f44336; font-weight: bold;">⚖️ Déséquilibré</span>';
+        }
         
         return `
-            <div style="max-width: 250px; font-family: Arial, sans-serif;">
-                <h3 style="margin: 0 0 10px 0; color: #5d4037; font-size: 16px;">${bar.name}</h3>
-                <p style="margin: 0 0 8px 0; color: #666; font-size: 13px;">${bar.address}</p>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                    <span style="color: #ff9800; font-size: 13px;">⭐ ${rating}</span>
-                    <span style="color: #4caf50; font-size: 13px; font-weight: bold;">⏱️ ~${avgTime} min</span>
+            <div style="max-width: 280px; font-family: Arial, sans-serif;">
+                <h3 style="margin: 0 0 8px 0; color: #5d4037; font-size: 16px; font-weight: bold;">${bar.name}</h3>
+                <p style="margin: 0 0 10px 0; color: #666; font-size: 12px; line-height: 1.3;">${bar.address}</p>
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
+                    <span style="color: #ff9800; font-size: 13px; font-weight: bold;">⭐ ${rating}</span>
+                    <span style="color: #4caf50; font-size: 13px; font-weight: bold;">⏱️ ~${avgTime} min (moyenne)</span>
                 </div>
-                <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bar.name + ' ' + bar.address)}" 
-                   target="_blank" 
-                   style="display: inline-block; background: #4285f4; color: white; padding: 6px 12px; 
-                          text-decoration: none; border-radius: 4px; font-size: 12px;">
-                    📍 Voir sur Maps
-                </a>
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; align-items: center; padding: 6px 8px; background: #f5f5f5; border-radius: 4px;">
+                    <span style="color: #666; font-size: 12px;">📊 Écart: ${timeSpread} min</span>
+                    ${balanceIndicator}
+                </div>
+                
+                <div style="display: flex; gap: 6px; margin-top: 10px;">
+                    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bar.name + ' ' + bar.address)}" 
+                       target="_blank" 
+                       style="display: inline-block; background: #4285f4; color: white; padding: 6px 8px; 
+                              text-decoration: none; border-radius: 4px; font-size: 11px; flex: 1; text-align: center;">
+                        📍 Voir sur Maps
+                    </a>
+                    <button onclick="barFinder.showBarDetailsInMap('${bar.place_id}')" 
+                            style="background: #ff9800; color: white; border: none; padding: 6px 8px; 
+                                   border-radius: 4px; font-size: 11px; cursor: pointer; flex: 1;">
+                        📊 Détails
+                    </button>
+                </div>
             </div>
         `;
     }

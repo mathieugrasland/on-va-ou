@@ -1049,6 +1049,29 @@ a:hover {
     color: #f44336;
 }
 
+/* Correction taille bouton fermeture InfoWindow Google Maps */
+.gm-ui-hover-effect {
+    width: 20px !important;
+    height: 20px !important;
+}
+
+.gm-ui-hover-effect > span {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 14px !important;
+    line-height: 20px !important;
+}
+
+/* InfoWindow custom styles */
+.gm-style .gm-style-iw-c {
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+.gm-style .gm-style-iw-t::after {
+    background: white !important;
+}
+
 /* Actions des bars */
 .bar-actions {
     display: flex;
