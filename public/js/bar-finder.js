@@ -274,7 +274,10 @@ export class BarFinder {
         console.log('Token récupéré, longueur:', idToken.length);
         
         try {
-            // Utiliser le routage Firebase au lieu de l'URL directe
+            // Utiliser le routage Firebase au lieu de l'URL directe avec timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+            
             const response = await fetch('/api/find-bars', {
                 method: 'POST',
                 headers: {
@@ -285,8 +288,11 @@ export class BarFinder {
                     positions: positions,
                     max_bars: 8,
                     search_radius: searchRadius
-                })
+                }),
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
 
             console.log('Réponse reçue:', response.status, response.statusText);
 
@@ -318,6 +324,14 @@ export class BarFinder {
             
         } catch (error) {
             console.error('Erreur lors de l\'appel API:', error);
+            
+            // Gestion spécifique du timeout
+            if (error.name === 'AbortError') {
+                const timeoutError = new Error('La recherche a pris trop de temps. Essayez avec moins d\'amis ou une zone plus petite.');
+                timeoutError.status = 408;
+                throw timeoutError;
+            }
+            
             throw error;
         }
     }

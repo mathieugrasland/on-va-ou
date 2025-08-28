@@ -173,7 +173,7 @@ def find_optimal_bars(request):
         # Rechercher un grand nombre de bars candidats dans un rayon plus large
         search_start = time.time()
         extended_radius = max(search_radius * 2, 2000)  # Minimum 2km pour avoir plus de choix
-        candidate_bars = search_bars_nearby(center_lat, center_lng, extended_radius, max_bars=100)  # Plus de choix avec limite API 100
+        candidate_bars = search_bars_nearby(center_lat, center_lng, extended_radius, max_bars=50)  # Optimisé pour limite 25
         search_time = time.time() - search_start
         print(f"Recherche bars terminée: {len(candidate_bars)} bars trouvés en {search_time:.2f}s")
         
@@ -201,10 +201,9 @@ def find_optimal_bars(request):
                                  (bar_location['lng'] - center_lng) ** 2) ** 0.5
             bar['_distance_to_center'] = distance_to_center
         
-        # Trier par distance au centre et adapter le nombre selon les positions
+        # Trier par distance au centre et limiter à 25 bars (limite API)
         quality_filtered_bars.sort(key=lambda x: x['_distance_to_center'])
-        max_candidates = min(80, 90 // len(positions))  # Adapter selon le nombre de positions
-        final_candidate_bars = quality_filtered_bars[:max_candidates]
+        final_candidate_bars = quality_filtered_bars[:25]  # Limite API 25 destinations max
         filter_time = time.time() - filter_start
         print(f"Filtrage terminé: {len(final_candidate_bars)} bars retenus en {filter_time:.2f}s")
         
@@ -283,7 +282,7 @@ def find_optimal_bars(request):
         return jsonify({"error": "Erreur interne du serveur"}), 500, headers
 
 
-def search_bars_nearby(lat, lng, radius, max_bars=100):
+def search_bars_nearby(lat, lng, radius, max_bars=50):
     """Recherche les bars autour d'un point avec possibilité de récupérer plus de résultats"""
     try:
         url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
@@ -298,7 +297,7 @@ def search_bars_nearby(lat, lng, radius, max_bars=100):
         
         all_bars = []
         next_page_token = None
-        max_pages = 3  # Limiter à 3 pages max pour éviter trop d'attente
+        max_pages = 2  # Réduire à 2 pages pour optimiser le temps
         page_count = 0
         
         # Récupérer plusieurs pages de résultats pour avoir plus de bars candidats
@@ -308,7 +307,7 @@ def search_bars_nearby(lat, lng, radius, max_bars=100):
                 # Attendre le minimum requis par l'API (2s) mais pas plus
                 time.sleep(2)
             
-            response = requests.get(url, params=params, timeout=15)  # Timeout réduit
+            response = requests.get(url, params=params, timeout=12)  # Timeout réduit
             response.raise_for_status()
             data = response.json()
         
@@ -364,10 +363,11 @@ def calculate_travel_times_batch(bars, positions):
             return {}
         
         # Optimisation : limiter dès le début pour éviter trop de calculs
-        # Adapter le nombre selon les positions pour respecter la limite API de 100 éléments
-        max_bars_to_process = min(80, 90 // len(positions))  # Garder une marge de sécurité
+        # Adapter le nombre selon les positions pour respecter la limite API de 25x25
+        # Limite réelle : 25 origines × 25 destinations maximum
+        max_bars_to_process = min(25, len(bars))  # Maximum 25 destinations
         limited_bars = bars[:max_bars_to_process]
-        print(f"Traitement de {len(limited_bars)} bars pour {len(positions)} positions")
+        print(f"Traitement de {len(limited_bars)} bars pour {len(positions)} positions (limite API: 25×25)")
         
         # Grouper les positions par mode de transport
         transport_groups = {}
@@ -403,31 +403,33 @@ def calculate_travel_times_batch(bars, positions):
         all_travel_times = [None] * len(positions)  # Index par position originale
         
         for transport_mode, group_positions in transport_groups.items():
-            # Traiter les requêtes par batch pour respecter les limites API (100 éléments max par requête)
+            # Traiter les requêtes par batch pour respecter les limites API (25×25 max)
             origins = [pos_info['origin'] for pos_info in group_positions]
             
-            # Calculer le nombre max de destinations par requête en fonction du nombre d'origines
-            # Limite API: origines × destinations ≤ 100
-            max_destinations_per_request = 100 // len(origins) if origins else 0
+            # Vérifier que nous ne dépassons pas 25 origines
+            if len(origins) > 25:
+                print(f"Trop d'origines ({len(origins)}) pour le mode {transport_mode}, limitation à 25")
+                origins = origins[:25]
+                group_positions = group_positions[:25]
             
-            if max_destinations_per_request == 0:
-                print(f"Trop d'origines ({len(origins)}) pour le mode {transport_mode}")
-                continue
+            # Calculer le nombre max de destinations par requête (25 max)
+            max_destinations_per_request = min(25, len(destinations))
             
             print(f"Mode {transport_mode}: {len(origins)} origines, max {max_destinations_per_request} destinations par requête")
             
-            # Découper les destinations par chunks selon la limite calculée
+            # Découper les destinations par chunks de 25 maximum
+            request_count = 0
             for dest_start in range(0, len(destinations), max_destinations_per_request):
                 dest_end = min(dest_start + max_destinations_per_request, len(destinations))
                 chunk_destinations = destinations[dest_start:dest_end]
+                request_count += 1
                 
-                # Vérification de sécurité
-                total_elements = len(origins) * len(chunk_destinations)
-                if total_elements > 100:
-                    print(f"ERREUR: Tentative de requête avec {total_elements} éléments (limit: 100)")
+                # Vérification de sécurité pour 25×25
+                if len(origins) > 25 or len(chunk_destinations) > 25:
+                    print(f"ERREUR: Dépassement limites API - {len(origins)} origines × {len(chunk_destinations)} destinations")
                     continue
                 
-                print(f"Requête API: {len(origins)} origines × {len(chunk_destinations)} destinations = {total_elements} éléments")
+                print(f"Requête {request_count} pour {transport_mode}: {len(origins)} origines × {len(chunk_destinations)} destinations")
                 
                 # Appel à l'API Distance Matrix pour ce chunk
                 url = "https://maps.googleapis.com/maps/api/distancematrix/json"
@@ -443,7 +445,7 @@ def calculate_travel_times_batch(bars, positions):
                     params['departure_time'] = 'now'
                 
                 try:
-                    response = requests.get(url, params=params, timeout=25)  # Timeout optimisé
+                    response = requests.get(url, params=params, timeout=20)  # Timeout optimisé pour éviter timeouts
                     response.raise_for_status()
                     data = response.json()
                     
