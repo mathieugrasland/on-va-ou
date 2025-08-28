@@ -27,22 +27,23 @@ Application web de géolocalisation sociale pour organiser des sorties entre ami
 - Ce point prend en compte la position de chaque participant pour minimiser les déplacements
 
 ### Étape 4 : Recherche des bars
-- L'application cherche tous les bars dans un rayon de 5km autour du point optimal
-- Seuls les établissements de type "bar" sont pris en compte
+- L'application cherche tous les bars dans un rayon de **600 mètres** autour du point optimal
+- Seuls les établissements de type "bar" avec une note d'au moins 3/5 sont pris en compte
 
-### Étape 5 : Calcul des temps de trajet
-- Pour chaque bar trouvé, l'application calcule le temps de trajet depuis la position de chaque participant
-- Le mode de transport de chaque personne est pris en compte :
-  - 🚗 Voiture : itinéraires routiers
-  - 🚲 Vélo : pistes cyclables
-  - 🚌 Transport en commun : réseau de transport public
-  - 🚶 À pied : itinéraires piétons
+### Étape 5 : Calcul des temps de trajet précis
+- Pour chaque bar trouvé, l'application utilise **l'API Google Maps Distance Matrix** pour calculer les temps de trajet réels
+- Le mode de transport de chaque personne est rigoureusement respecté :
+  - 🚗 Voiture : itinéraires routiers en temps réel
+  - 🚲 Vélo : pistes cyclables et routes adaptées
+  - 🚌 Transport en commun : horaires et correspondances en temps réel
+  - 🚶 À pied : itinéraires piétons optimisés
+- Si l'API ne peut pas calculer un itinéraire (par exemple, pas de transport en commun disponible), le bar est écarté
 
 ### Étape 6 : Sélection des meilleurs bars
 - Les bars sont classés selon deux critères principaux :
-  1. **Temps moyen** : La moyenne des temps de trajet de tous les participants
-  2. **Équité** : Bars où personne n'a un trajet beaucoup plus long que les autres
-- Les 5 meilleurs bars sont sélectionnés et affichés
+  1. **Note Google** : Les bars les mieux notés sont priorisés
+  2. **Temps de trajet moyen** : En cas d'égalité de notes, le temps moyen départage
+- Les **5 meilleurs bars** selon ces critères sont sélectionnés et affichés
 
 ### Étape 7 : Résultats
 - Les bars apparaissent sur la carte avec des marqueurs 🍺

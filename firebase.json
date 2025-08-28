@@ -26,6 +26,10 @@
       {
         "source": "/api/geocode",
         "function": "geocode_address"
+      },
+      {
+        "source": "/api/find-bars",
+        "function": "find_optimal_bars"
       }
     ],
     "headers": [

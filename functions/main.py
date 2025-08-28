@@ -6,7 +6,6 @@ import os
 import requests
 import json
 import statistics
-from geopy.distance import geodesic
 import time
 
 # Cloud Functions pour "On va où ?" - Version optimisée
@@ -152,7 +151,7 @@ def find_optimal_bars(request):
         
         positions = request_json['positions']
         max_bars = request_json.get('max_bars', 5)
-        search_radius = request_json.get('search_radius', 5000)  # 5km par défaut
+        search_radius = request_json.get('search_radius', 600)  # 600m par défaut
         
         if len(positions) < 2:
             return jsonify({"error": "Au moins 2 positions requises"}), 400, headers
@@ -169,10 +168,14 @@ def find_optimal_bars(request):
         
         # Calculer les temps de trajet pour chaque bar
         bars_with_times = []
-        for bar in bars[:max_bars * 2]:  # Prendre plus que nécessaire pour le filtrage
+        for bar in bars:
+            # Filtrer les bars sans note ou avec une note trop faible
+            if not bar.get('rating') or bar.get('rating') < 3.0:
+                continue
+                
             try:
                 travel_times = calculate_travel_times(bar, positions)
-                if travel_times:
+                if travel_times and len(travel_times) == len(positions):  # S'assurer qu'on a tous les temps
                     avg_time = statistics.mean(travel_times)
                     max_time = max(travel_times)
                     
@@ -192,8 +195,8 @@ def find_optimal_bars(request):
                 print(f"Erreur calcul temps pour bar {bar.get('name', 'Unknown')}: {e}")
                 continue
         
-        # Trier par temps moyen puis par variance (équité)
-        bars_with_times.sort(key=lambda x: (x['avg_travel_time'], x['time_variance']))
+        # Trier par note d'abord (décroissant), puis par temps moyen (croissant)
+        bars_with_times.sort(key=lambda x: (-x['rating'], x['avg_travel_time']))
         
         # Prendre les meilleurs bars
         best_bars = bars_with_times[:max_bars]
@@ -239,13 +242,13 @@ def search_bars_nearby(lat, lng, radius):
 
 
 def calculate_travel_times(bar, positions):
-    """Calcule les temps de trajet pour chaque position vers un bar"""
+    """Calcule les temps de trajet pour chaque position vers un bar via Google Maps API"""
     try:
         bar_location = bar['geometry']['location']
         travel_times = []
         
-        # Préparer les destinations et origines pour l'API
-        destinations = f"{bar_location['lat']},{bar_location['lng']}"
+        # Préparer les destinations
+        destination = f"{bar_location['lat']},{bar_location['lng']}"
         
         for position in positions:
             origin = f"{position['location']['lat']},{position['location']['lng']}"
@@ -254,7 +257,7 @@ def calculate_travel_times(bar, positions):
             # Mapper les modes de transport
             mode_mapping = {
                 'car': 'driving',
-                'bicycle': 'bicycling',
+                'bicycle': 'bicycling', 
                 'public_transport': 'transit',
                 'walking': 'walking'
             }
@@ -264,40 +267,39 @@ def calculate_travel_times(bar, positions):
             url = "https://maps.googleapis.com/maps/api/distancematrix/json"
             params = {
                 'origins': origin,
-                'destinations': destinations,
+                'destinations': destination,
                 'mode': google_mode,
                 'language': 'fr',
+                'departure_time': 'now',  # Pour les transports en commun
                 'key': GOOGLE_MAPS_API_KEY
             }
             
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            
-            if (data['status'] == 'OK' and 
-                data['rows'] and 
-                data['rows'][0]['elements'] and 
-                data['rows'][0]['elements'][0]['status'] == 'OK'):
+            try:
+                response = requests.get(url, params=params, timeout=15)
+                response.raise_for_status()
+                data = response.json()
                 
-                duration = data['rows'][0]['elements'][0]['duration']['value']
-                travel_times.append(duration / 60)  # Convertir en minutes
-            else:
-                # Si l'API échoue, estimer avec la distance à vol d'oiseau
-                distance_km = geodesic(
-                    (position['location']['lat'], position['location']['lng']),
-                    (bar_location['lat'], bar_location['lng'])
-                ).kilometers
-                
-                # Estimation grossière selon le mode de transport
-                speed_kmh = {'driving': 30, 'bicycling': 15, 'transit': 20, 'walking': 5}
-                estimated_time = (distance_km / speed_kmh.get(google_mode, 5)) * 60
-                travel_times.append(estimated_time)
+                if (data['status'] == 'OK' and 
+                    data['rows'] and 
+                    data['rows'][0]['elements'] and 
+                    data['rows'][0]['elements'][0]['status'] == 'OK'):
+                    
+                    duration = data['rows'][0]['elements'][0]['duration']['value']
+                    travel_times.append(duration / 60)  # Convertir en minutes
+                else:
+                    # Si l'API échoue pour cette combinaison, on abandonne ce bar
+                    print(f"API échoué pour {origin} -> {destination} en mode {google_mode}: {data.get('status', 'Unknown')}")
+                    return None
+                    
+            except requests.RequestException as e:
+                print(f"Erreur requête API pour {origin} -> {destination}: {e}")
+                return None
             
-            # Petite pause pour éviter les rate limits
-            time.sleep(0.1)
+            # Pause pour éviter les rate limits
+            time.sleep(0.2)
         
-        return travel_times
+        return travel_times if len(travel_times) == len(positions) else None
         
     except Exception as e:
         print(f"Erreur calcul temps de trajet: {e}")
-        return []
+        return None

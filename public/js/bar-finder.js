@@ -90,17 +90,17 @@ export class BarFinder {
                 throw new Error('Pas assez de positions valides trouvées');
             }
             
-            statusEl.textContent = 'Calcul du point optimal...';
+            statusEl.textContent = 'Calcul du point optimal et recherche de bars (600m)...';
             
             // Appeler la Cloud Function pour trouver les bars
             const bars = await this.callFindBarsCloudFunction(positions);
             
             if (bars && bars.length > 0) {
-                statusEl.textContent = `${bars.length} bar(s) trouvé(s) !`;
+                statusEl.textContent = `${bars.length} bar(s) bien noté(s) trouvé(s) !`;
                 this.displayBars(bars);
                 this.showBarsOnMap(bars);
             } else {
-                throw new Error('Aucun bar trouvé dans la zone');
+                throw new Error('Aucun bar bien noté trouvé dans un rayon de 600m');
             }
             
         } catch (error) {
@@ -168,7 +168,7 @@ export class BarFinder {
     async callFindBarsCloudFunction(positions) {
         const idToken = await this.currentUser.getIdToken();
         
-        const response = await fetch('https://us-central1-on-va-ou-c6d7f.cloudfunctions.net/find_optimal_bars', {
+        const response = await fetch('/api/find-bars', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -177,7 +177,7 @@ export class BarFinder {
             body: JSON.stringify({
                 positions: positions,
                 max_bars: 5,
-                search_radius: 5000 // 5km
+                search_radius: 600 // 600m de rayon
             })
         });
 

@@ -137,7 +137,14 @@ jobs:
           gcloud services enable cloudfunctions.googleapis.com --project on-va-ou-470217
           gcloud services enable cloudbuild.googleapis.com --project on-va-ou-470217
           gcloud services enable run.googleapis.com --project on-va-ou-470217
-          echo "✅ Required APIs enabled"
+          
+          # Activer les APIs Google Maps nécessaires pour les bars
+          gcloud services enable places-backend.googleapis.com --project on-va-ou-470217
+          gcloud services enable geocoding-backend.googleapis.com --project on-va-ou-470217
+          gcloud services enable maps-backend.googleapis.com --project on-va-ou-470217
+          gcloud services enable distance-matrix-backend.googleapis.com --project on-va-ou-470217
+          
+          echo "✅ Required APIs enabled (Cloud Functions + Google Maps)"
 
       - name: Deploy Cloud Functions with secure geocoding
         env:
@@ -155,7 +162,18 @@ jobs:
             --set-env-vars GOOGLE_MAPS_API_KEY="${GOOGLE_MAPS_API_KEY}" \
             --project on-va-ou-470217
           
-          echo "✅ Cloud Function (geocode_address) deployed successfully"
+          # Déployer la fonction de recherche de bars optimaux
+          gcloud functions deploy find_optimal_bars \
+            --runtime python311 \
+            --trigger-http \
+            --allow-unauthenticated \
+            --no-gen2 \
+            --source . \
+            --entry-point find_optimal_bars \
+            --set-env-vars GOOGLE_MAPS_API_KEY="${GOOGLE_MAPS_API_KEY}" \
+            --project on-va-ou-470217
+          
+          echo "✅ Cloud Functions (geocode_address + find_optimal_bars) deployed successfully"
 
   # Déploiement Firestore Rules
   deploy-firestore:
