@@ -2,9 +2,11 @@
 class UpdateManager {
     constructor() {
         this.currentVersion = '1.0.0';
-        this.checkInterval = 30000; // Vérifier toutes les 30 secondes
+        this.checkInterval = 300000; // Vérifier toutes les 5 minutes (au lieu de 30 sec)
         this.isUpdateAvailable = false;
         this.serviceWorker = null;
+        this.lastCheckTime = 0;
+        this.minCheckInterval = 60000; // Minimum 1 minute entre les vérifications
         
         this.init();
     }
@@ -33,14 +35,15 @@ class UpdateManager {
             }
         }
         
-        // Vérifier périodiquement les mises à jour
-        this.startUpdateCheck();
+        // Vérifier périodiquement les mises à jour (désactivé temporairement)
+        // this.startUpdateCheck();
         
-        // Vérifier au focus de la fenêtre
-        window.addEventListener('focus', () => this.checkForUpdates());
-        
-        // Vérifier avant la fermeture
-        window.addEventListener('beforeunload', () => this.checkForUpdates());
+        // Vérifier seulement au focus de la fenêtre (throttled)
+        let focusCheckTimeout;
+        window.addEventListener('focus', () => {
+            clearTimeout(focusCheckTimeout);
+            focusCheckTimeout = setTimeout(() => this.checkForUpdates(), 2000);
+        });
     }
     
     startUpdateCheck() {
@@ -50,12 +53,33 @@ class UpdateManager {
     }
     
     async checkForUpdates() {
+        const now = Date.now();
+        
+        // Throttling: éviter les vérifications trop fréquentes
+        if (now - this.lastCheckTime < this.minCheckInterval) {
+            console.log('⏳ Vérification trop récente, ignorée');
+            return;
+        }
+        
+        this.lastCheckTime = now;
+        
         try {
-            // Vérifier si les fichiers ont changé
-            const response = await fetch('/index.html?' + Date.now(), { 
+            // Vérifier si les fichiers ont changé avec un timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // Timeout de 5 secondes
+            
+            const response = await fetch('/index.html?' + now, { 
                 method: 'HEAD',
-                cache: 'no-cache' 
+                cache: 'no-cache',
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                console.log('📡 Réponse non OK pour la vérification de mise à jour');
+                return;
+            }
             
             const lastModified = response.headers.get('Last-Modified');
             const etag = response.headers.get('ETag');
@@ -74,7 +98,11 @@ class UpdateManager {
             }
             
         } catch (error) {
-            console.log('📡 Pas de réseau pour vérifier les mises à jour');
+            if (error.name === 'AbortError') {
+                console.log('⏰ Vérification de mise à jour timeout');
+            } else {
+                console.log('📡 Pas de réseau pour vérifier les mises à jour');
+            }
         }
     }
     
@@ -265,8 +293,12 @@ class UpdateManager {
     // Force une vérification manuelle
     async forceCheck() {
         console.log('🔍 Vérification forcée des mises à jour...');
+        
+        // Reset du throttling pour la vérification forcée
+        this.lastCheckTime = 0;
         localStorage.removeItem('app-last-modified');
         localStorage.removeItem('app-etag');
+        
         await this.checkForUpdates();
     }
 }

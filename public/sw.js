@@ -67,16 +67,27 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
     
-    // Stratégie pour les fichiers HTML : toujours du réseau
+    // Ignorer les requêtes problématiques
+    if (url.protocol === 'chrome-extension:' || 
+        url.protocol === 'moz-extension:' ||
+        event.request.method !== 'GET' ||
+        url.pathname.includes('api/') ||
+        url.pathname.includes('__/') ||
+        url.pathname.includes('_ah/')) {
+        return; // Laisser passer sans intervention
+    }
+    
+    // Stratégie pour les fichiers HTML : toujours du réseau avec fallback
     if (event.request.destination === 'document' || url.pathname.endsWith('.html')) {
         event.respondWith(
             fetch(event.request)
                 .then((response) => {
-                    // Mettre à jour le cache avec la nouvelle version
-                    if (response.status === 200) {
+                    // Seulement mettre en cache les réponses valides
+                    if (response.status === 200 && response.type === 'basic') {
                         const responseClone = response.clone();
                         caches.open(CACHE_NAME)
-                            .then((cache) => cache.put(event.request, responseClone));
+                            .then((cache) => cache.put(event.request, responseClone))
+                            .catch((err) => console.log('Cache put failed:', err));
                     }
                     return response;
                 })
@@ -88,31 +99,50 @@ self.addEventListener('fetch', (event) => {
         return;
     }
     
-    // Stratégie pour les autres ressources : cache first avec revalidation
-    if (STATIC_ASSETS.some(asset => url.pathname.includes(asset))) {
+    // Stratégie pour les autres ressources statiques
+    if (url.pathname.endsWith('.js') || 
+        url.pathname.endsWith('.css') || 
+        url.pathname.endsWith('.png') || 
+        url.pathname.endsWith('.jpg') || 
+        url.pathname.endsWith('.svg') ||
+        url.pathname.endsWith('.ico')) {
+        
         event.respondWith(
             caches.match(event.request)
                 .then((cachedResponse) => {
-                    // Retourner le cache ET fetcher en arrière-plan
-                    const fetchPromise = fetch(event.request)
+                    if (cachedResponse) {
+                        // Revalidation en arrière-plan pour les fichiers JS/CSS
+                        if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+                            fetch(event.request)
+                                .then((response) => {
+                                    if (response.status === 200 && response.type === 'basic') {
+                                        caches.open(CACHE_NAME)
+                                            .then((cache) => cache.put(event.request, response.clone()))
+                                            .catch((err) => console.log('Background cache update failed:', err));
+                                    }
+                                })
+                                .catch(() => {}); // Ignorer les erreurs en arrière-plan
+                        }
+                        return cachedResponse;
+                    }
+                    
+                    // Pas en cache, fetcher depuis le réseau
+                    return fetch(event.request)
                         .then((response) => {
-                            if (response.status === 200) {
+                            if (response.status === 200 && response.type === 'basic') {
                                 const responseClone = response.clone();
                                 caches.open(CACHE_NAME)
-                                    .then((cache) => cache.put(event.request, responseClone));
+                                    .then((cache) => cache.put(event.request, responseClone))
+                                    .catch((err) => console.log('Cache put failed:', err));
                             }
                             return response;
                         });
-                    
-                    // Retourner le cache s'il existe, sinon attendre le réseau
-                    return cachedResponse || fetchPromise;
                 })
         );
         return;
     }
     
-    // Pour tout le reste : réseau d'abord
-    event.respondWith(fetch(event.request));
+    // Pour tout le reste : réseau uniquement
 });
 
 // Écouter les messages du client principal
