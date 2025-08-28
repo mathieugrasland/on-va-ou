@@ -124,46 +124,72 @@ def geocode_address(request):
 @functions_framework.http
 def find_optimal_bars(request):
     """Trouve les bars optimaux en temps pour un groupe d'amis"""
+    # Headers CORS pour toutes les réponses
+    headers = {'Access-Control-Allow-Origin': '*'}
+    
+    # Gestion preflight OPTIONS
     if request.method == 'OPTIONS':
-        headers = {
-            'Access-Control-Allow-Origin': '*',
+        headers.update({
             'Access-Control-Allow-Methods': 'POST',
             'Access-Control-Allow-Headers': 'Content-Type, Authorization',
             'Access-Control-Max-Age': '3600'
-        }
+        })
         return ('', 204, headers)
 
-    headers = {'Access-Control-Allow-Origin': '*'}
-
     try:
+        print(f"=== DEBUT find_optimal_bars ===")
+        print(f"Method: {request.method}")
+        print(f"Headers: {dict(request.headers)}")
+        
         # Vérification du token
         authorization = request.headers.get('Authorization')
         if not authorization or not authorization.startswith('Bearer '):
+            print("ERROR: Token d'authentification manquant")
             return jsonify({"error": "Token d'authentification manquant"}), 401, headers
 
         id_token = authorization.split(' ')[1]
-        auth.verify_id_token(id_token)
+        print(f"Token reçu, longueur: {len(id_token)}")
+        
+        # Vérification du token Firebase
+        try:
+            decoded_token = auth.verify_id_token(id_token)
+            print(f"Token valide pour user: {decoded_token.get('uid', 'unknown')}")
+        except Exception as e:
+            print(f"ERROR: Token invalide: {e}")
+            return jsonify({"error": "Token invalide"}), 401, headers
         
         # Récupération des données
         request_json = request.get_json(silent=True)
+        print(f"Body reçu: {request_json}")
+        
         if not request_json or 'positions' not in request_json:
+            print("ERROR: Positions manquantes")
             return jsonify({"error": "Positions manquantes"}), 400, headers
         
         positions = request_json['positions']
         max_bars = request_json.get('max_bars', 5)
         search_radius = request_json.get('search_radius', 600)  # 600m par défaut
         
+        print(f"Positions reçues: {len(positions)}")
+        print(f"Max bars: {max_bars}, Radius: {search_radius}")
+        
         if len(positions) < 2:
+            print("ERROR: Moins de 2 positions")
             return jsonify({"error": "Au moins 2 positions requises"}), 400, headers
 
         # Calculer le point central optimal
+        print("Calcul du point central...")
         center_lat = statistics.mean([pos['location']['lat'] for pos in positions])
         center_lng = statistics.mean([pos['location']['lng'] for pos in positions])
+        print(f"Point central: {center_lat}, {center_lng}")
         
         # Rechercher les bars autour du point central
+        print(f"Recherche de bars dans un rayon de {search_radius}m...")
         bars = search_bars_nearby(center_lat, center_lng, search_radius)
+        print(f"Bars trouvés: {len(bars) if bars else 0}")
         
         if not bars:
+            print("ERROR: Aucun bar trouvé")
             return jsonify({"error": "Aucun bar trouvé dans la zone"}), 404, headers
         
         # Calculer les temps de trajet pour chaque bar
@@ -207,10 +233,16 @@ def find_optimal_bars(request):
             "center_point": {"lat": center_lat, "lng": center_lng}
         }), 200, headers
 
-    except auth.InvalidIdTokenError:
+    except auth.InvalidIdTokenError as e:
+        print(f"ERROR: Token invalide: {e}")
         return jsonify({"error": "Token invalide"}), 401, headers
+    except ValueError as e:
+        print(f"ERROR: Données invalides: {e}")
+        return jsonify({"error": str(e)}), 400, headers
     except Exception as e:
-        print(f"Erreur find_optimal_bars: {e}")
+        print(f"ERROR: Exception non gérée dans find_optimal_bars: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": "Erreur interne du serveur"}), 500, headers
 
 
