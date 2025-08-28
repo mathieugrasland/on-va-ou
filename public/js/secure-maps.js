@@ -439,8 +439,7 @@ export class SecureMapManager {
         
         return `
             <div style="max-width: 280px; font-family: Arial, sans-serif;">
-                <h3 style="margin: 0 0 8px 0; color: #5d4037; font-size: 16px; font-weight: bold;">${bar.name}</h3>
-                <p style="margin: 0 0 10px 0; color: #666; font-size: 12px; line-height: 1.3;">${bar.address}</p>
+                <h3 style="margin: 0 0 12px 0; color: #5d4037; font-size: 16px; font-weight: bold;">${bar.name}</h3>
                 
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center;">
                     <span style="color: #ff9800; font-size: 13px; font-weight: bold;">⭐ ${rating}</span>
