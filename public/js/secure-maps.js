@@ -377,26 +377,11 @@ export class SecureMapManager {
         }
 
         bars.forEach((bar, index) => {
-            // Déterminer l'emoji et la couleur du marqueur selon le type de bar
+            // Déterminer l'emoji selon le type de bar
             let emojiIcon = '📍'; // Par défaut
-            let markerColor = '#ca4406ff'; // Orange par défaut
             
             if (bar.marker_emoji) {
                 emojiIcon = bar.marker_emoji;
-                
-                // Adapter la couleur selon le type
-                switch (bar.marker_type) {
-                    case 'fastest': // Éclair ⚡
-                        markerColor = '#2196f3'; // Bleu pour rapidité
-                        break;
-                    case 'most_balanced': // Balance ⚖️
-                        markerColor = '#4caf50'; // Vert pour équilibre
-                        break;
-                    case 'standard': // Pin 📍
-                    default:
-                        markerColor = '#ca4406ff'; // Orange standard
-                        break;
-                }
             }
             
             const marker = new google.maps.Marker({
@@ -408,13 +393,13 @@ export class SecureMapManager {
                 title: bar.name,
                 icon: {
                     url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                        <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="12" cy="12" r="10" fill="${markerColor}" stroke="#fff" stroke-width="2"/>
-                            <text x="12" y="16" text-anchor="middle" font-size="12" fill="white">${emojiIcon}</text>
+                        <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="16" cy="16" r="14" fill="white" fill-opacity="0.85" stroke="#333" stroke-width="1.5"/>
+                            <text x="16" y="22" text-anchor="middle" font-size="16" fill="#333" style="text-shadow: 0 0 2px white;">${emojiIcon}</text>
                         </svg>
                     `),
-                    scaledSize: new google.maps.Size(24, 24),
-                    anchor: new google.maps.Point(12, 12)
+                    scaledSize: new google.maps.Size(32, 32),
+                    anchor: new google.maps.Point(16, 16)
                 },
                 zIndex: 1000 + index
             });
