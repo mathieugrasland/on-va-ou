@@ -598,6 +598,8 @@
                 // Demandes reçues
                 const receivedContainer = document.getElementById('received-requests');
                 const sentContainer = document.getElementById('sent-requests');
+                const receivedSection = document.querySelector('.friend-requests-received');
+                const sentSection = document.querySelector('.friend-requests-sent');
                 
                 // Assurer la structure correcte des friendRequests
                 if (!userProfile.friendRequests) {
@@ -645,8 +647,9 @@
                             })
                         );
                         receivedContainer.innerHTML = receivedHTML.join('');
+                        receivedSection.style.display = 'block';
                     } else {
-                        receivedContainer.innerHTML = '<p class="no-requests">Aucune demande reçue</p>';
+                        receivedSection.style.display = 'none';
                     }
 
                     // Demandes envoyées
@@ -665,12 +668,13 @@
                             })
                         );
                         sentContainer.innerHTML = sentHTML.join('');
+                        sentSection.style.display = 'block';
                     } else {
-                        sentContainer.innerHTML = '<p class="no-requests">Aucune demande envoyée</p>';
+                        sentSection.style.display = 'none';
                     }
                 } else {
-                    receivedContainer.innerHTML = '<p class="no-requests">Aucune demande reçue</p>';
-                    sentContainer.innerHTML = '<p class="no-requests">Aucune demande envoyée</p>';
+                    receivedSection.style.display = 'none';
+                    sentSection.style.display = 'none';
                 }
             } catch (error) {
                 console.error('Erreur chargement demandes:', error);
