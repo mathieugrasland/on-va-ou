@@ -283,7 +283,7 @@ export class BarFinder {
                 },
                 body: JSON.stringify({
                     positions: positions,
-                    max_bars: 5,
+                    max_bars: 8,
                     search_radius: searchRadius
                 })
             });
