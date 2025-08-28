@@ -231,7 +231,7 @@ export class SecureMapManager {
                 labelOrigin: new google.maps.Point(0, -2) // Décale le label au-dessus
             },
             label: {
-                text: name,
+                text: 'Moi',
                 color: '#5d4037',
                 fontSize: '11px',
                 fontWeight: '500'
