@@ -447,7 +447,11 @@
                         isNewUser,
                         profileCompleted: userProfile.profileCompleted,
                         firstName: userProfile.firstName,
-                        lastName: userProfile.lastName
+                        lastName: userProfile.lastName,
+                        email: userProfile.email,
+                        currentUserEmail: currentUser.email,
+                        uid: currentUser.uid,
+                        friendRequests: userProfile.friendRequests
                     });
                     
                     updateUI();
@@ -761,6 +765,10 @@
         // Rechercher un utilisateur par email et envoyer une demande d'amitié
         async function sendFriendRequest(email) {
             try {
+                console.log('🔍 Debug - Email recherché:', email);
+                console.log('🔍 Debug - Email utilisateur actuel:', currentUser.email);
+                console.log('🔍 Debug - UID utilisateur actuel:', currentUser.uid);
+                
                 // Vérifier que ce n'est pas son propre email
                 if (email === currentUser.email) {
                     showMessage('Vous ne pouvez pas vous ajouter vous-même !', 'error');
@@ -771,6 +779,16 @@
                 const usersRef = collection(db, 'users');
                 const q = query(usersRef, where('email', '==', email));
                 const querySnapshot = await getDocs(q);
+
+                console.log('🔍 Debug - Nombre d\'utilisateurs trouvés:', querySnapshot.size);
+                querySnapshot.docs.forEach(doc => {
+                    console.log('🔍 Debug - Utilisateur trouvé:', {
+                        uid: doc.id,
+                        email: doc.data().email,
+                        firstName: doc.data().firstName,
+                        lastName: doc.data().lastName
+                    });
+                });
 
                 if (querySnapshot.empty) {
                     showMessage('Aucun utilisateur trouvé avec cette adresse email', 'error');
@@ -818,6 +836,20 @@
                     const currentRequests = currentUserData.friendRequests || { sent: [], received: [] };
                     const targetRequests = targetUserData.friendRequests || { sent: [], received: [] };
                     
+                    console.log('🔍 Debug transaction - Current user data:', {
+                        uid: currentUser.uid,
+                        email: currentUserData.email,
+                        friendRequests: currentRequests,
+                        friends: currentUserData.friends || []
+                    });
+                    
+                    console.log('🔍 Debug transaction - Target user data:', {
+                        uid: targetUid,
+                        email: targetUserData.email,
+                        friendRequests: targetRequests,
+                        friends: targetUserData.friends || []
+                    });
+                    
                     if ((currentUserData.friends || []).includes(targetUid)) {
                         throw new Error('Déjà amis');
                     }
@@ -831,8 +863,18 @@
                     }
                     
                     // Mises à jour atomiques
+                    console.log('🔄 Mise à jour expéditeur - Ajout dans sent:', {
+                        currentUserUid: currentUser.uid,
+                        targetUid: targetUid
+                    });
+                    
                     transaction.update(doc(db, 'users', currentUser.uid), {
                         'friendRequests.sent': arrayUnion(targetUid)
+                    });
+                    
+                    console.log('🔄 Mise à jour destinataire - Ajout dans received:', {
+                        targetUid: targetUid,
+                        currentUserUid: currentUser.uid
                     });
                     
                     transaction.update(doc(db, 'users', targetUid), {
@@ -1190,10 +1232,9 @@
                 
                 console.log('🔍 Données actuelles des demandes:', requests);
                 
-                // DÉSACTIVER temporairement la synchronisation agressive pour debug
-                // Les demandes seront conservées même si il y a des incohérences
-                console.log('⚠️ Synchronisation agressive désactivée pour debug');
-                return false;
+                // RÉACTIVER temporairement la synchronisation agressive pour debug
+                // console.log('⚠️ Synchronisation agressive désactivée pour debug');
+                // return false;
                 
                 // Nettoyer les demandes envoyées (vérifier que les destinataires nous ont bien en "received")
                 if (requests.sent && requests.sent.length > 0) {
