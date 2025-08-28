@@ -968,6 +968,7 @@ a:hover {
     box-shadow: var(--shadow-light);
     transition: all var(--transition-speed);
     border: 1px solid var(--input-border);
+    position: relative;
 }
 
 .bar-card:hover {
@@ -1047,6 +1048,36 @@ a:hover {
     font-weight: 500;
     background: rgba(244, 67, 54, 0.1);
     color: #f44336;
+}
+
+/* Badges spéciaux pour les bars */
+.special-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: white;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    animation: badgePulse 2s infinite ease-in-out;
+}
+
+.fastest-badge {
+    background: linear-gradient(135deg, #2196f3, #1976d2);
+    border: 2px solid #1565c0;
+}
+
+.balanced-badge {
+    background: linear-gradient(135deg, #4caf50, #388e3c);
+    border: 2px solid #2e7d32;
+}
+
+@keyframes badgePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
 }
 
 /* Correction taille bouton fermeture InfoWindow Google Maps */

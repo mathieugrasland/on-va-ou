@@ -437,7 +437,30 @@ export class BarFinder {
             balanceIndicator = '<span class="balance-poor">⚖️ Déséquilibré</span>';
         }
         
+        // Déterminer l'affichage du badge spécial
+        let specialBadge = '';
+        if (bar.marker_emoji && bar.marker_type) {
+            let badgeClass = '';
+            let badgeText = '';
+            
+            switch (bar.marker_type) {
+                case 'fastest':
+                    badgeClass = 'special-badge fastest-badge';
+                    badgeText = `${bar.marker_emoji} Plus rapide`;
+                    break;
+                case 'most_balanced':
+                    badgeClass = 'special-badge balanced-badge';
+                    badgeText = `${bar.marker_emoji} Plus équitable`;
+                    break;
+            }
+            
+            if (badgeClass) {
+                specialBadge = `<div class="${badgeClass}">${badgeText}</div>`;
+            }
+        }
+        
         card.innerHTML = `
+            ${specialBadge}
             <div class="bar-name">${bar.name}</div>
             <div class="bar-address">${bar.address}</div>
             <div class="bar-info">

@@ -377,6 +377,28 @@ export class SecureMapManager {
         }
 
         bars.forEach((bar, index) => {
+            // Déterminer l'emoji et la couleur du marqueur selon le type de bar
+            let emojiIcon = '📍'; // Par défaut
+            let markerColor = '#ca4406ff'; // Orange par défaut
+            
+            if (bar.marker_emoji) {
+                emojiIcon = bar.marker_emoji;
+                
+                // Adapter la couleur selon le type
+                switch (bar.marker_type) {
+                    case 'fastest': // Éclair ⚡
+                        markerColor = '#2196f3'; // Bleu pour rapidité
+                        break;
+                    case 'most_balanced': // Balance ⚖️
+                        markerColor = '#4caf50'; // Vert pour équilibre
+                        break;
+                    case 'standard': // Pin 📍
+                    default:
+                        markerColor = '#ca4406ff'; // Orange standard
+                        break;
+                }
+            }
+            
             const marker = new google.maps.Marker({
                 position: {
                     lat: bar.location.lat,
@@ -386,12 +408,13 @@ export class SecureMapManager {
                 title: bar.name,
                 icon: {
                     url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                        <svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M10 2 L12.5 7 L18 7 L14 10.5 L15.5 16 L10 13 L4.5 16 L6 10.5 L2 7 L7.5 7 Z" fill="#ca4406ff" stroke="#fff" stroke-width="1.5"/>
+                        <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="12" r="10" fill="${markerColor}" stroke="#fff" stroke-width="2"/>
+                            <text x="12" y="16" text-anchor="middle" font-size="12" fill="white">${emojiIcon}</text>
                         </svg>
                     `),
-                    scaledSize: new google.maps.Size(20, 20),
-                    anchor: new google.maps.Point(10, 10)
+                    scaledSize: new google.maps.Size(24, 24),
+                    anchor: new google.maps.Point(12, 12)
                 },
                 zIndex: 1000 + index
             });

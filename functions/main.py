@@ -256,6 +256,29 @@ def find_optimal_bars(request):
         # Retourner autant de bars que possible (jusqu'à 25 avec la limite API)
         best_bars = balanced_bars[:min(max_bars, len(balanced_bars))]
         
+        # Identifier les bars spéciaux pour l'affichage avec des emojis distinctifs
+        if len(best_bars) > 0:
+            # 1. Bar avec la plus petite moyenne de temps de trajet -> emoji éclair ⚡
+            min_avg_time_bar = min(best_bars, key=lambda x: x['avg_travel_time'])
+            min_avg_time_bar['marker_emoji'] = '⚡'
+            min_avg_time_bar['marker_type'] = 'fastest'
+            
+            # 2. Bar avec le plus petit écart de trajet -> emoji balance ⚖️
+            min_spread_bar = min(best_bars, key=lambda x: x['time_balance_score'])
+            min_spread_bar['marker_emoji'] = '⚖️'
+            min_spread_bar['marker_type'] = 'most_balanced'
+            
+            # Si c'est le même bar, privilégier l'équilibre (balance) car plus rare
+            if min_avg_time_bar['place_id'] == min_spread_bar['place_id']:
+                min_avg_time_bar['marker_emoji'] = '⚖️'
+                min_avg_time_bar['marker_type'] = 'most_balanced'
+            
+            # 3. Tous les autres bars -> emoji pin 📍
+            for bar in best_bars:
+                if 'marker_emoji' not in bar:
+                    bar['marker_emoji'] = '📍'
+                    bar['marker_type'] = 'standard'
+        
         total_time = time.time() - start_time
         print(f"Recherche complète terminée en {total_time:.2f}s - {len(best_bars)} bars retournés (scoring basé sur {len(participant_clusters)} clusters)")
         
