@@ -50,6 +50,44 @@ class SecureGeocodingService {
         }
     }
 
+    // Nouvelle méthode pour géocoder plusieurs adresses en une seule fois
+    async geocodeMultipleAddresses(addressesData) {
+        try {
+            const user = this.auth?.currentUser;
+            if (!user) {
+                throw new Error('Utilisateur non authentifié');
+            }
+
+            const token = await user.getIdToken();
+            
+            const response = await fetch(`${this.baseUrl}/api/geocode-batch`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ addresses: addressesData })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Erreur de géocodage batch');
+            }
+
+            const data = await response.json();
+            
+            if (!data.success) {
+                throw new Error(data.error || 'Erreur géocodage batch');
+            }
+
+            return data.results; // Retourne un objet avec les résultats indexés par ID
+
+        } catch (error) {
+            console.error('Erreur géocodage batch:', error);
+            throw error;
+        }
+    }
+
     async geocodeMultipleAddresses(addresses) {
         const promises = addresses.map(address => 
             this.geocodeAddress(address).catch(error => ({
@@ -86,7 +124,7 @@ export class SecureMapManager {
             const defaultPosition = { lat: 48.8566, lng: 2.3522 };
 
             this.map = new google.maps.Map(mapElement, {
-                zoom: 11, // Zoom légèrement réduit (était 12)
+                zoom: 11.5, // Zoom intermédiaire entre 11 et 12
                 center: defaultPosition,
                 mapTypeId: 'roadmap',
                 mapTypeControl: false,
@@ -123,20 +161,20 @@ export class SecureMapManager {
             const userData = userDoc.data();
             const friends = userData.friends || [];
             
-            // D'abord, chargeons notre propre position
+            // Préparer toutes les adresses à géocoder en une fois
+            const addressesToGeocode = [];
+            
+            // Ajouter l'adresse de l'utilisateur
             if (userData.address) {
-                try {
-                    const location = await this.geocodingService.geocodeAddress(userData.address);
-                    this.addUserMarker(location, userData.firstName || 'Vous');
-                    // La carte reste centrée sur Paris (pas de recentrage automatique)
-                } catch (error) {
-                    console.error('Erreur chargement position utilisateur:', error);
-                }
+                addressesToGeocode.push({
+                    id: 'user',
+                    address: userData.address,
+                    name: userData.firstName || 'Vous',
+                    type: 'user'
+                });
             }
 
-            if (friends.length === 0) return;
-
-            // Chargeons maintenant les positions des amis
+            // Charger les données des amis et préparer leurs adresses
             for (const friendId of friends) {
                 try {
                     const friendDoc = await getDoc(doc(this.db, 'users', friendId));
@@ -144,11 +182,41 @@ export class SecureMapManager {
 
                     const friendData = friendDoc.data();
                     if (friendData.address) {
-                        const location = await this.geocodingService.geocodeAddress(friendData.address);
-                        this.addFriendMarker(location, friendData.firstName || 'Ami', friendId);
+                        addressesToGeocode.push({
+                            id: friendId,
+                            address: friendData.address,
+                            name: friendData.firstName || 'Ami',
+                            type: 'friend'
+                        });
                     }
                 } catch (error) {
                     console.error(`Erreur chargement ami ${friendId}:`, error);
+                }
+            }
+
+            // Si aucune adresse à géocoder, on s'arrête
+            if (addressesToGeocode.length === 0) return;
+
+            // Un seul appel pour toutes les adresses !
+            console.log(`Géocodage de ${addressesToGeocode.length} adresses en une seule fois...`);
+            const geoResults = await this.geocodingService.geocodeMultipleAddresses(addressesToGeocode);
+
+            // Traiter les résultats
+            for (const addressData of addressesToGeocode) {
+                const result = geoResults[addressData.id];
+                if (result && result.success) {
+                    const location = {
+                        lat: result.location.lat,
+                        lng: result.location.lng
+                    };
+
+                    if (addressData.type === 'user') {
+                        this.addUserMarker(location, addressData.name);
+                    } else {
+                        this.addFriendMarker(location, addressData.name, addressData.id);
+                    }
+                } else {
+                    console.warn(`Géocodage échoué pour ${addressData.name}:`, result?.error);
                 }
             }
 
