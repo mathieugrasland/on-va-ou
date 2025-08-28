@@ -201,9 +201,10 @@ def find_optimal_bars(request):
                                  (bar_location['lng'] - center_lng) ** 2) ** 0.5
             bar['_distance_to_center'] = distance_to_center
         
-        # Trier par distance au centre et prendre les 80 plus proches
+        # Trier par distance au centre et adapter le nombre selon les positions
         quality_filtered_bars.sort(key=lambda x: x['_distance_to_center'])
-        final_candidate_bars = quality_filtered_bars[:80]
+        max_candidates = min(80, 90 // len(positions))  # Adapter selon le nombre de positions
+        final_candidate_bars = quality_filtered_bars[:max_candidates]
         filter_time = time.time() - filter_start
         print(f"Filtrage terminé: {len(final_candidate_bars)} bars retenus en {filter_time:.2f}s")
         
@@ -363,8 +364,10 @@ def calculate_travel_times_batch(bars, positions):
             return {}
         
         # Optimisation : limiter dès le début pour éviter trop de calculs
-        # Prendre les 80 premiers bars pour avoir un bon compromis qualité/performance (avec limite 100 API)
-        limited_bars = bars[:80]
+        # Adapter le nombre selon les positions pour respecter la limite API de 100 éléments
+        max_bars_to_process = min(80, 90 // len(positions))  # Garder une marge de sécurité
+        limited_bars = bars[:max_bars_to_process]
+        print(f"Traitement de {len(limited_bars)} bars pour {len(positions)} positions")
         
         # Grouper les positions par mode de transport
         transport_groups = {}
@@ -405,16 +408,26 @@ def calculate_travel_times_batch(bars, positions):
             
             # Calculer le nombre max de destinations par requête en fonction du nombre d'origines
             # Limite API: origines × destinations ≤ 100
-            max_destinations_per_request = min(100 // len(origins), len(destinations)) if origins else 0
+            max_destinations_per_request = 100 // len(origins) if origins else 0
             
             if max_destinations_per_request == 0:
                 print(f"Trop d'origines ({len(origins)}) pour le mode {transport_mode}")
                 continue
             
+            print(f"Mode {transport_mode}: {len(origins)} origines, max {max_destinations_per_request} destinations par requête")
+            
             # Découper les destinations par chunks selon la limite calculée
             for dest_start in range(0, len(destinations), max_destinations_per_request):
                 dest_end = min(dest_start + max_destinations_per_request, len(destinations))
                 chunk_destinations = destinations[dest_start:dest_end]
+                
+                # Vérification de sécurité
+                total_elements = len(origins) * len(chunk_destinations)
+                if total_elements > 100:
+                    print(f"ERREUR: Tentative de requête avec {total_elements} éléments (limit: 100)")
+                    continue
+                
+                print(f"Requête API: {len(origins)} origines × {len(chunk_destinations)} destinations = {total_elements} éléments")
                 
                 # Appel à l'API Distance Matrix pour ce chunk
                 url = "https://maps.googleapis.com/maps/api/distancematrix/json"
