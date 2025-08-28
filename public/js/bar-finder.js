@@ -204,7 +204,8 @@ export class BarFinder {
         console.log('Token récupéré, longueur:', idToken.length);
         
         try {
-            const response = await fetch('/api/find-bars', {
+            // Utiliser l'URL directe de la Cloud Function pour le moment
+            const response = await fetch('https://us-central1-on-va-ou-c6d7f.cloudfunctions.net/find_optimal_bars', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -220,9 +221,16 @@ export class BarFinder {
             console.log('Réponse reçue:', response.status, response.statusText);
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error('Erreur API:', errorData);
-                throw new Error(errorData.error || 'Erreur serveur');
+                const errorText = await response.text();
+                console.error('Erreur API (text):', errorText);
+                
+                // Essayer de parser en JSON si possible
+                try {
+                    const errorData = JSON.parse(errorText);
+                    throw new Error(errorData.error || 'Erreur serveur');
+                } catch {
+                    throw new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
+                }
             }
 
             const data = await response.json();
