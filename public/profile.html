@@ -194,11 +194,12 @@
             }
             
             .profile-content {
-                padding: 0 15px;
+                padding: 0 10px;
+                max-width: 100%;
             }
             
             .profile-header {
-                padding: 20px;
+                padding: 20px 15px;
                 flex-direction: column;
                 text-align: center;
                 align-items: center;
@@ -215,8 +216,12 @@
             }
             
             .form-section {
-                padding: 20px;
+                padding: 20px 15px;
                 border-radius: 15px;
+                margin-left: 0;
+                margin-right: 0;
+                width: 100%;
+                box-sizing: border-box;
             }
             
             .form-section h3 {
@@ -225,6 +230,27 @@
             
             .form-row {
                 flex-direction: column;
+            }
+            
+            .friends-section {
+                padding: 20px 15px;
+                margin-left: 0;
+                margin-right: 0;
+                width: 100%;
+                box-sizing: border-box;
+            }
+            
+            .form-group {
+                width: 100%;
+                box-sizing: border-box;
+            }
+            
+            .form-group input,
+            .form-group select,
+            .form-group textarea {
+                width: 100%;
+                box-sizing: border-box;
+                max-width: 100%;
             }
         }
 
@@ -314,6 +340,20 @@
             .button, .button-secondary, .button-logout {
                 padding: 10px 20px;
                 font-size: 13px;
+                width: auto;
+                max-width: 100%;
+                box-sizing: border-box;
+            }
+            
+            .form-actions {
+                padding: 20px 0;
+                text-align: center;
+            }
+            
+            .form-actions .button {
+                width: 100%;
+                max-width: 280px;
+                box-sizing: border-box;
             }
         }
     </style>
