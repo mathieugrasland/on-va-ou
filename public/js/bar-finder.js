@@ -130,9 +130,18 @@ export class BarFinder {
             
         } catch (error) {
             console.error('Erreur recherche bars:', error);
+            console.log('Détails erreur - status:', error.status, 'message:', error.message, 'rawResponse:', error.rawResponse);
             
             // Vérifier si c'est une erreur 404 avec "Aucun bar trouvé dans la zone"
-            if (error.message.includes('404') && error.message.includes('Aucun bar trouvé')) {
+            const isNoBarFoundError = (
+                error.status === 404 || 
+                error.message.includes('Aucun bar trouvé dans la zone') ||
+                (error.rawResponse && error.rawResponse.includes('Aucun bar trouvé dans la zone'))
+            );
+            
+            console.log('isNoBarFoundError:', isNoBarFoundError);
+            
+            if (isNoBarFoundError) {
                 await this.handleNoBarFoundError(searchRadius);
             } else {
                 statusEl.textContent = `Erreur: ${error.message}`;
@@ -288,9 +297,18 @@ export class BarFinder {
                 // Essayer de parser en JSON si possible
                 try {
                     const errorData = JSON.parse(errorText);
-                    throw new Error(errorData.error || 'Erreur serveur');
-                } catch {
-                    throw new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
+                    const errorMessage = errorData.error || 'Erreur serveur';
+                    
+                    // Créer une erreur avec des informations complètes pour la détection
+                    const error = new Error(errorMessage);
+                    error.status = response.status;
+                    error.rawResponse = errorText;
+                    throw error;
+                } catch (parseError) {
+                    const error = new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
+                    error.status = response.status;
+                    error.rawResponse = errorText;
+                    throw error;
                 }
             }
 
