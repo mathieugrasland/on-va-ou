@@ -387,7 +387,7 @@ export class SecureMapManager {
                 icon: {
                     url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
                         <svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M10 2 L12.5 7 L18 7 L14 10.5 L15.5 16 L10 13 L4.5 16 L6 10.5 L2 7 L7.5 7 Z" fill="#d946ef" stroke="#fff" stroke-width="1.5"/>
+                            <path d="M10 2 L12.5 7 L18 7 L14 10.5 L15.5 16 L10 13 L4.5 16 L6 10.5 L2 7 L7.5 7 Z" fill="#ca4406ff" stroke="#fff" stroke-width="1.5"/>
                         </svg>
                     `),
                     scaledSize: new google.maps.Size(20, 20),

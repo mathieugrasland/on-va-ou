@@ -168,7 +168,7 @@ def find_optimal_bars(request):
         
         positions = request_json['positions']
         max_bars = request_json.get('max_bars', 5)
-        search_radius = request_json.get('search_radius', 600)  # 600m par défaut
+        search_radius = min(request_json.get('search_radius', 500), 800)  # Limiter entre 500-800m pour performance
         
         print(f"Positions reçues: {len(positions)}")
         print(f"Max bars: {max_bars}, Radius: {search_radius}")
@@ -183,8 +183,8 @@ def find_optimal_bars(request):
         center_lng = statistics.mean([pos['location']['lng'] for pos in positions])
         print(f"Point central: {center_lat}, {center_lng}")
         
-        # Rechercher les bars autour du point central
-        print(f"Recherche de bars dans un rayon de {search_radius}m...")
+        # Rechercher les bars autour du point central (optimisé)
+        print(f"Recherche de bars dans un rayon optimisé de {search_radius}m...")
         bars = search_bars_nearby(center_lat, center_lng, search_radius)
         print(f"Bars trouvés: {len(bars) if bars else 0}")
         
@@ -192,34 +192,48 @@ def find_optimal_bars(request):
             print("ERROR: Aucun bar trouvé")
             return jsonify({"error": "Aucun bar trouvé dans la zone"}), 404, headers
         
-        # Calculer les temps de trajet pour chaque bar
-        bars_with_times = []
+        # Filtrer d'abord les bars avec une note suffisante
+        print("Filtrage des bars par note...")
+        quality_bars = []
         for bar in bars:
-            # Filtrer les bars sans note ou avec une note trop faible
-            if not bar.get('rating') or bar.get('rating') < 3.0:
-                continue
-                
-            try:
-                travel_times = calculate_travel_times(bar, positions)
-                if travel_times and len(travel_times) == len(positions):  # S'assurer qu'on a tous les temps
-                    avg_time = statistics.mean(travel_times)
-                    max_time = max(travel_times)
-                    
-                    bars_with_times.append({
-                        'name': bar['name'],
-                        'address': bar.get('formatted_address', bar.get('vicinity', '')),
-                        'location': bar['geometry']['location'],
-                        'rating': bar.get('rating'),
-                        'price_level': bar.get('price_level'),
-                        'place_id': bar['place_id'],
-                        'travel_times': travel_times,
-                        'avg_travel_time': avg_time,
-                        'max_travel_time': max_time,
-                        'time_variance': statistics.variance(travel_times) if len(travel_times) > 1 else 0
-                    })
-            except Exception as e:
-                print(f"Erreur calcul temps pour bar {bar.get('name', 'Unknown')}: {e}")
-                continue
+            if bar.get('rating') and bar.get('rating') >= 3.0:
+                quality_bars.append(bar)
+        
+        print(f"Bars avec note ≥3.0: {len(quality_bars)} sur {len(bars)}")
+        
+        if not quality_bars:
+            print("ERROR: Aucun bar avec une note suffisante")
+            return jsonify({"error": "Aucun bar bien noté trouvé dans la zone"}), 404, headers
+        
+        # Calculer les temps de trajet en batch (beaucoup plus rapide)
+        print("Calcul batch des temps de trajet...")
+        travel_times_results = calculate_travel_times_batch(quality_bars, positions)
+        
+        # Construire la liste finale des bars avec leurs temps
+        bars_with_times = []
+        for bar_idx, travel_times in travel_times_results.items():
+            bar = quality_bars[bar_idx]
+            avg_time = statistics.mean(travel_times)
+            max_time = max(travel_times)
+            
+            bars_with_times.append({
+                'name': bar['name'],
+                'address': bar.get('formatted_address', bar.get('vicinity', '')),
+                'location': bar['geometry']['location'],
+                'rating': bar.get('rating'),
+                'price_level': bar.get('price_level'),
+                'place_id': bar['place_id'],
+                'travel_times': travel_times,
+                'avg_travel_time': avg_time,
+                'max_travel_time': max_time,
+                'time_variance': statistics.variance(travel_times) if len(travel_times) > 1 else 0
+            })
+        
+        print(f"Bars finaux avec temps: {len(bars_with_times)}")
+        
+        if not bars_with_times:
+            print("ERROR: Aucun bar avec temps de trajet valides")
+            return jsonify({"error": "Impossible de calculer les temps de trajet"}), 500, headers
         
         # Trier par note d'abord (décroissant), puis par temps moyen (croissant)
         bars_with_times.sort(key=lambda x: (-x['rating'], x['avg_travel_time']))
@@ -299,17 +313,18 @@ def search_bars_nearby(lat, lng, radius):
         return []
 
 
-def calculate_travel_times(bar, positions):
-    """Calcule les temps de trajet pour chaque position vers un bar via Google Maps API"""
+def calculate_travel_times_batch(bars, positions):
+    """Calcule les temps de trajet pour tous les bars et positions en groupant par mode de transport"""
     try:
-        bar_location = bar['geometry']['location']
-        travel_times = []
+        if not bars or not positions:
+            return {}
         
-        # Préparer les destinations
-        destination = f"{bar_location['lat']},{bar_location['lng']}"
+        # Limiter le nombre de bars pour éviter les timeouts (max 10 bars)
+        limited_bars = bars[:10]
         
-        for position in positions:
-            origin = f"{position['location']['lat']},{position['location']['lng']}"
+        # Grouper les positions par mode de transport
+        transport_groups = {}
+        for idx, position in enumerate(positions):
             transport_mode = position.get('transportMode', 'walking')
             
             # Mapper les modes de transport
@@ -321,43 +336,97 @@ def calculate_travel_times(bar, positions):
             }
             google_mode = mode_mapping.get(transport_mode, 'walking')
             
-            # Appel à Distance Matrix API
+            if google_mode not in transport_groups:
+                transport_groups[google_mode] = []
+            
+            transport_groups[google_mode].append({
+                'index': idx,
+                'position': position,
+                'origin': f"{position['location']['lat']},{position['location']['lng']}"
+            })
+        
+        print(f"Groupes de transport: {list(transport_groups.keys())}")
+        
+        # Préparer toutes les destinations (bars)
+        destinations = []
+        for bar in limited_bars:
+            bar_location = bar['geometry']['location']
+            destination = f"{bar_location['lat']},{bar_location['lng']}"
+            destinations.append(destination)
+        
+        # Résultats finaux : bar_idx -> [temps_personne_0, temps_personne_1, ...]
+        final_results = {}
+        
+        # Faire une requête par groupe de transport
+        all_travel_times = [None] * len(positions)  # Index par position originale
+        
+        for transport_mode, group_positions in transport_groups.items():
+            print(f"Calcul pour mode {transport_mode}: {len(group_positions)} personnes")
+            
+            # Préparer les origines pour ce groupe
+            origins = [pos_info['origin'] for pos_info in group_positions]
+            
+            # Appel à l'API Distance Matrix pour ce groupe
             url = "https://maps.googleapis.com/maps/api/distancematrix/json"
             params = {
-                'origins': origin,
-                'destinations': destination,
-                'mode': google_mode,
+                'origins': '|'.join(origins),
+                'destinations': '|'.join(destinations),
+                'mode': transport_mode,
                 'language': 'fr',
-                'departure_time': 'now',  # Pour les transports en commun
                 'key': GOOGLE_MAPS_API_KEY
             }
             
-            try:
-                response = requests.get(url, params=params, timeout=15)
-                response.raise_for_status()
-                data = response.json()
-                
-                if (data['status'] == 'OK' and 
-                    data['rows'] and 
-                    data['rows'][0]['elements'] and 
-                    data['rows'][0]['elements'][0]['status'] == 'OK'):
-                    
-                    duration = data['rows'][0]['elements'][0]['duration']['value']
-                    travel_times.append(duration / 60)  # Convertir en minutes
-                else:
-                    # Si l'API échoue pour cette combinaison, on abandonne ce bar
-                    print(f"API échoué pour {origin} -> {destination} en mode {google_mode}: {data.get('status', 'Unknown')}")
-                    return None
-                    
-            except requests.RequestException as e:
-                print(f"Erreur requête API pour {origin} -> {destination}: {e}")
-                return None
+            if transport_mode == 'transit':
+                params['departure_time'] = 'now'
             
-            # Pause pour éviter les rate limits
-            time.sleep(0.2)
+            print(f"Requête batch {transport_mode}: {len(origins)} origines vers {len(destinations)} destinations")
+            
+            response = requests.get(url, params=params, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            
+            if data['status'] != 'OK':
+                print(f"API Distance Matrix error pour {transport_mode}: {data['status']}")
+                continue
+            
+            # Parser les résultats pour ce groupe
+            for person_idx_in_group, pos_info in enumerate(group_positions):
+                original_person_idx = pos_info['index']
+                person_times = []
+                
+                for bar_idx in range(len(limited_bars)):
+                    try:
+                        element = data['rows'][person_idx_in_group]['elements'][bar_idx]
+                        if element['status'] == 'OK':
+                            duration_minutes = element['duration']['value'] / 60
+                            person_times.append(duration_minutes)
+                        else:
+                            person_times.append(None)
+                    except (KeyError, IndexError):
+                        person_times.append(None)
+                
+                all_travel_times[original_person_idx] = person_times
         
-        return travel_times if len(travel_times) == len(positions) else None
+        # Construire les résultats finaux par bar
+        for bar_idx in range(len(limited_bars)):
+            travel_times_for_bar = []
+            valid_times = True
+            
+            for person_idx in range(len(positions)):
+                if (all_travel_times[person_idx] is not None and 
+                    bar_idx < len(all_travel_times[person_idx]) and
+                    all_travel_times[person_idx][bar_idx] is not None):
+                    travel_times_for_bar.append(all_travel_times[person_idx][bar_idx])
+                else:
+                    valid_times = False
+                    break
+            
+            if valid_times and len(travel_times_for_bar) == len(positions):
+                final_results[bar_idx] = travel_times_for_bar
+        
+        print(f"Résultats batch finaux: {len(final_results)} bars avec temps valides pour tous les modes de transport")
+        return final_results
         
     except Exception as e:
-        print(f"Erreur calcul temps de trajet: {e}")
-        return None
+        print(f"Erreur calcul batch: {e}")
+        return {}
