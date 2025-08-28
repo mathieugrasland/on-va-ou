@@ -1084,6 +1084,10 @@
                             const geoData = await response.json();
                             if (geoData.success) {
                                 // Ajouter les coordonnées au profil
+                                profileData.location = {
+                                    lat: geoData.location.lat,
+                                    lng: geoData.location.lng
+                                };
                                 profileData.coordinates = {
                                     lat: geoData.location.lat,
                                     lng: geoData.location.lng,

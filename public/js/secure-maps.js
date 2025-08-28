@@ -114,10 +114,11 @@ export class SecureMapManager {
             const friends = userData.friends || [];
             
             // Charger notre propre position depuis les coordonnées stockées
-            if (userData.coordinates && userData.coordinates.lat && userData.coordinates.lng) {
+            const userLocation = userData.location || userData.coordinates;
+            if (userLocation && userLocation.lat && userLocation.lng) {
                 const location = {
-                    lat: userData.coordinates.lat,
-                    lng: userData.coordinates.lng
+                    lat: userLocation.lat,
+                    lng: userLocation.lng
                 };
                 this.addUserMarker(location, userData.firstName || 'Vous');
                 console.log('Position utilisateur chargée depuis le cache:', location);
@@ -128,8 +129,12 @@ export class SecureMapManager {
                     const location = await this.geocodingService.geocodeAddress(userData.address);
                     this.addUserMarker(location, userData.firstName || 'Vous');
                     
-                    // Sauvegarder les coordonnées pour la prochaine fois
+                    // Sauvegarder les coordonnées pour la prochaine fois (nouveau format + ancien)
                     await updateDoc(userDocRef, {
+                        location: {
+                            lat: location.lat,
+                            lng: location.lng
+                        },
                         coordinates: {
                             lat: location.lat,
                             lng: location.lng,
@@ -156,11 +161,12 @@ export class SecureMapManager {
 
                     const friendData = friendDoc.data();
                     
-                    // Priorité 1: Utiliser les coordonnées stockées
-                    if (friendData.coordinates && friendData.coordinates.lat && friendData.coordinates.lng) {
+                    // Priorité 1: Utiliser les coordonnées stockées (nouveau ou ancien format)
+                    const friendLocation = friendData.location || friendData.coordinates;
+                    if (friendLocation && friendLocation.lat && friendLocation.lng) {
                         const location = {
-                            lat: friendData.coordinates.lat,
-                            lng: friendData.coordinates.lng
+                            lat: friendLocation.lat,
+                            lng: friendLocation.lng
                         };
                         this.addFriendMarker(location, friendData.firstName || 'Ami', friendId);
                         loadedFromCache++;
@@ -189,8 +195,12 @@ export class SecureMapManager {
                         const location = await this.geocodingService.geocodeAddress(friendInfo.address);
                         this.addFriendMarker(location, friendInfo.name, friendInfo.id);
                         
-                        // Sauvegarder les coordonnées pour la prochaine fois
+                        // Sauvegarder les coordonnées pour la prochaine fois (nouveau format + ancien)
                         await updateDoc(friendInfo.docRef, {
+                            location: {
+                                lat: location.lat,
+                                lng: location.lng
+                            },
                             coordinates: {
                                 lat: location.lat,
                                 lng: location.lng,

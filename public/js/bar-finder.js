@@ -86,8 +86,12 @@ export class BarFinder {
             // Récupérer les positions de tous les amis sélectionnés + utilisateur actuel
             const positions = await this.getFriendsPositions();
             
+            if (positions.length < 1) {
+                throw new Error('Aucune position valide trouvée. Vérifiez que vous et vos amis avez renseigné une adresse dans leur profil.');
+            }
+            
             if (positions.length < 2) {
-                throw new Error('Pas assez de positions valides trouvées');
+                throw new Error(`Seulement ${positions.length} position(s) trouvée(s). Il faut au moins 2 personnes avec des adresses valides.`);
             }
             
             statusEl.textContent = 'Calcul du point optimal et recherche de bars (600m)...';
@@ -124,35 +128,63 @@ export class BarFinder {
             // Import dynamique
             const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
             
+            console.log('Récupération positions pour:', {
+                userId: this.currentUser.uid,
+                selectedFriends: Array.from(this.selectedFriends)
+            });
+            
             // Ajouter la position de l'utilisateur actuel
             const userDoc = await getDoc(doc(this.db, 'users', this.currentUser.uid));
             if (userDoc.exists()) {
                 const userData = userDoc.data();
-                if (userData.location) {
+                console.log('Données utilisateur:', userData);
+                
+                // Chercher location ou coordinates (ancien format)
+                const userLocation = userData.location || userData.coordinates;
+                
+                if (userLocation && userLocation.lat && userLocation.lng) {
                     positions.push({
                         id: this.currentUser.uid,
                         name: `${userData.firstName || 'Vous'}`,
-                        location: userData.location,
+                        location: userLocation,
                         transportMode: userData.transportMode || 'walking'
                     });
+                    console.log('Position utilisateur ajoutée:', userLocation);
+                } else {
+                    console.warn('Utilisateur sans position valide:', userLocation);
                 }
+            } else {
+                console.warn('Document utilisateur non trouvé');
             }
             
             // Ajouter les positions des amis sélectionnés
             for (const friendId of this.selectedFriends) {
+                console.log('Récupération ami:', friendId);
                 const friendDoc = await getDoc(doc(this.db, 'users', friendId));
                 if (friendDoc.exists()) {
                     const friendData = friendDoc.data();
-                    if (friendData.location) {
+                    console.log('Données ami:', friendData);
+                    
+                    // Chercher location ou coordinates (ancien format)
+                    const friendLocation = friendData.location || friendData.coordinates;
+                    
+                    if (friendLocation && friendLocation.lat && friendLocation.lng) {
                         positions.push({
                             id: friendId,
                             name: `${friendData.firstName || 'Ami'}`,
-                            location: friendData.location,
+                            location: friendLocation,
                             transportMode: friendData.transportMode || 'walking'
                         });
+                        console.log('Position ami ajoutée:', friendLocation);
+                    } else {
+                        console.warn('Ami sans position valide:', friendId, friendLocation);
                     }
+                } else {
+                    console.warn('Document ami non trouvé:', friendId);
                 }
             }
+            
+            console.log('Positions finales récupérées:', positions);
             
         } catch (error) {
             console.error('Erreur récupération positions:', error);
@@ -166,28 +198,41 @@ export class BarFinder {
      * Appelle la Cloud Function pour trouver les bars optimaux
      */
     async callFindBarsCloudFunction(positions) {
-        const idToken = await this.currentUser.getIdToken();
+        console.log('Appel Cloud Function avec positions:', positions);
         
-        const response = await fetch('/api/find-bars', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${idToken}`
-            },
-            body: JSON.stringify({
-                positions: positions,
-                max_bars: 5,
-                search_radius: 600 // 600m de rayon
-            })
-        });
+        const idToken = await this.currentUser.getIdToken();
+        console.log('Token récupéré, longueur:', idToken.length);
+        
+        try {
+            const response = await fetch('/api/find-bars', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${idToken}`
+                },
+                body: JSON.stringify({
+                    positions: positions,
+                    max_bars: 5,
+                    search_radius: 600 // 600m de rayon
+                })
+            });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Erreur serveur');
+            console.log('Réponse reçue:', response.status, response.statusText);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Erreur API:', errorData);
+                throw new Error(errorData.error || 'Erreur serveur');
+            }
+
+            const data = await response.json();
+            console.log('Données reçues:', data);
+            return data.bars || [];
+            
+        } catch (error) {
+            console.error('Erreur lors de l\'appel API:', error);
+            throw error;
         }
-
-        const data = await response.json();
-        return data.bars || [];
     }
 
     /**
