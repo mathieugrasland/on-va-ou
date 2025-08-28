@@ -352,8 +352,35 @@ export class BarFinder {
         // Vider et remplir la liste
         barsList.innerHTML = '';
         
-        bars.forEach((bar, index) => {
-            const barCard = this.createBarCard(bar, index);
+        // Identifier et réorganiser les bars spéciaux
+        const specialBars = [];
+        const regularBars = [];
+        
+        bars.forEach((bar, originalIndex) => {
+            bar.originalIndex = originalIndex; // Conserver l'index original pour les callbacks
+            
+            if (bar.marker_type === 'most_balanced') {
+                specialBars.unshift(bar); // Le plus équitable en premier
+            } else if (bar.marker_type === 'fastest') {
+                if (specialBars.length === 0) {
+                    specialBars.push(bar); // Le plus rapide en deuxième si pas de bar équitable
+                } else {
+                    specialBars.push(bar); // Le plus rapide après le plus équitable
+                }
+            } else {
+                regularBars.push(bar);
+            }
+        });
+        
+        // Réorganiser : bars spéciaux en premier, puis le reste
+        const orderedBars = [...specialBars, ...regularBars];
+        
+        // Créer une correspondance entre place_id et position d'affichage
+        this.displayIndexMap = new Map();
+        
+        orderedBars.forEach((bar, displayIndex) => {
+            this.displayIndexMap.set(bar.place_id, displayIndex);
+            const barCard = this.createBarCard(bar, bar.originalIndex, displayIndex);
             barsList.appendChild(barCard);
         });
         
@@ -418,7 +445,7 @@ export class BarFinder {
     /**
      * Crée une carte pour un bar
      */
-    createBarCard(bar, index) {
+    createBarCard(bar, originalIndex, displayIndex = null) {
         const card = document.createElement('div');
         card.className = 'bar-card';
         
@@ -437,8 +464,17 @@ export class BarFinder {
             balanceIndicator = '<span class="balance-poor">⚖️ Déséquilibré</span>';
         }
         
-        // Déterminer l'affichage du badge spécial
+        // Déterminer l'affichage du badge spécial et des mentions
         let specialBadge = '';
+        let topChoiceMention = '';
+        
+        // Pour les deux premiers choix, ajouter une mention spéciale
+        if (displayIndex === 0 && bar.marker_type === 'most_balanced') {
+            topChoiceMention = '<div class="top-choice-mention first-choice">🏆 1er CHOIX - Bar le plus équitable</div>';
+        } else if ((displayIndex === 0 && bar.marker_type === 'fastest') || (displayIndex === 1 && bar.marker_type === 'fastest')) {
+            topChoiceMention = '<div class="top-choice-mention second-choice">⚡ 2ème CHOIX - Bar le plus rapide</div>';
+        }
+        
         if (bar.marker_emoji && bar.marker_type) {
             let badgeClass = '';
             let badgeText = '';
@@ -460,6 +496,7 @@ export class BarFinder {
         }
         
         card.innerHTML = `
+            ${topChoiceMention}
             ${specialBadge}
             <div class="bar-name">${bar.name}</div>
             <div class="bar-address">${bar.address}</div>
@@ -471,20 +508,20 @@ export class BarFinder {
                 <span class="time-spread">📊 Écart: ${timeSpread} min</span>
                 ${balanceIndicator}
             </div>
-            <div class="bar-details hidden" id="bar-details-${index}">
+            <div class="bar-details hidden" id="bar-details-${originalIndex}">
                 <div class="travel-times">
                     <h4>Temps de trajet détaillés :</h4>
-                    <div id="travel-times-${index}"></div>
+                    <div id="travel-times-${originalIndex}"></div>
                 </div>
             </div>
             <div class="bar-actions">
-                <button class="bar-action-btn details-btn" onclick="barFinder.toggleBarDetails(${index})">
+                <button class="bar-action-btn details-btn" onclick="barFinder.toggleBarDetails(${originalIndex})">
                     📊 Détails temps
                 </button>
                 <button class="bar-action-btn maps-btn" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bar.name + ' ' + bar.address)}', '_blank')">
                     📍 Voir sur Maps
                 </button>
-                <button class="bar-action-btn" onclick="barFinder.centerMapOnBar(${index})">
+                <button class="bar-action-btn" onclick="barFinder.centerMapOnBar(${originalIndex})">
                     🗺️ Centrer carte
                 </button>
             </div>
@@ -541,8 +578,11 @@ export class BarFinder {
             setTimeout(() => {
                 this.toggleBarDetails(barIndex);
                 
+                // Trouver la position d'affichage du bar
+                const displayIndex = this.displayIndexMap ? this.displayIndexMap.get(placeId) : barIndex;
+                
                 // Highlight temporairement la carte du bar
-                const barCard = document.querySelector(`.bar-card:nth-child(${barIndex + 1})`);
+                const barCard = document.querySelector(`.bar-card:nth-child(${displayIndex + 1})`);
                 if (barCard) {
                     barCard.style.border = '2px solid #ff9800';
                     barCard.style.boxShadow = '0 4px 12px rgba(255, 152, 0, 0.3)';

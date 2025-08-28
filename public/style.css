@@ -1080,6 +1080,46 @@ a:hover {
     50% { transform: scale(1.05); }
 }
 
+/* Mentions pour les premiers choix */
+.top-choice-mention {
+    margin: -20px -20px 15px -20px;
+    padding: 12px 20px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-align: center;
+    color: white;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    border-radius: 12px 12px 0 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.top-choice-mention::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: shine 3s infinite;
+}
+
+.first-choice {
+    background: linear-gradient(135deg, #ffd700, #ffb300);
+    border-bottom: 3px solid #ff8f00;
+}
+
+.second-choice {
+    background: linear-gradient(135deg, #2196f3, #1976d2);
+    border-bottom: 3px solid #1565c0;
+}
+
+@keyframes shine {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
 /* Correction taille bouton fermeture InfoWindow Google Maps */
 .gm-ui-hover-effect {
     width: 20px !important;
