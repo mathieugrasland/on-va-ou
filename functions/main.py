@@ -6,7 +6,6 @@ import os
 import requests
 import json
 import statistics
-import time
 
 # Cloud Functions pour "On va où ?" - Version optimisée
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', 'AIzaSyBUNmeroMLlCNzrpCi7-6VCGBGfJ4Eg4MQ')
@@ -137,76 +136,52 @@ def find_optimal_bars(request):
         return ('', 204, headers)
 
     try:
-        print(f"=== DEBUT find_optimal_bars ===")
-        print(f"Method: {request.method}")
-        print(f"Headers: {dict(request.headers)}")
-        
         # Vérification du token
         authorization = request.headers.get('Authorization')
         if not authorization or not authorization.startswith('Bearer '):
-            print("ERROR: Token d'authentification manquant")
             return jsonify({"error": "Token d'authentification manquant"}), 401, headers
 
         id_token = authorization.split(' ')[1]
-        print(f"Token reçu, longueur: {len(id_token)}")
         
         # Vérification du token Firebase
         try:
             decoded_token = auth.verify_id_token(id_token)
-            print(f"Token valide pour user: {decoded_token.get('uid', 'unknown')}")
         except Exception as e:
-            print(f"ERROR: Token invalide: {e}")
             return jsonify({"error": "Token invalide"}), 401, headers
         
         # Récupération des données
         request_json = request.get_json(silent=True)
-        print(f"Body reçu: {request_json}")
         
         if not request_json or 'positions' not in request_json:
-            print("ERROR: Positions manquantes")
             return jsonify({"error": "Positions manquantes"}), 400, headers
         
         positions = request_json['positions']
         max_bars = request_json.get('max_bars', 5)
         search_radius = min(request_json.get('search_radius', 500), 800)  # Limiter entre 500-800m pour performance
         
-        print(f"Positions reçues: {len(positions)}")
-        print(f"Max bars: {max_bars}, Radius: {search_radius}")
-        
         if len(positions) < 2:
-            print("ERROR: Moins de 2 positions")
             return jsonify({"error": "Au moins 2 positions requises"}), 400, headers
 
         # Calculer le point central optimal
-        print("Calcul du point central...")
         center_lat = statistics.mean([pos['location']['lat'] for pos in positions])
         center_lng = statistics.mean([pos['location']['lng'] for pos in positions])
-        print(f"Point central: {center_lat}, {center_lng}")
         
-        # Rechercher les bars autour du point central (optimisé)
-        print(f"Recherche de bars dans un rayon optimisé de {search_radius}m...")
+        # Rechercher les bars autour du point central
         bars = search_bars_nearby(center_lat, center_lng, search_radius)
-        print(f"Bars trouvés: {len(bars) if bars else 0}")
         
         if not bars:
-            print("ERROR: Aucun bar trouvé")
             return jsonify({"error": "Aucun bar trouvé dans la zone"}), 404, headers
         
         # Filtrer d'abord les bars avec une note suffisante
-        print("Filtrage des bars par note...")
         quality_bars = []
         for bar in bars:
             if bar.get('rating') and bar.get('rating') >= 3.0:
                 quality_bars.append(bar)
         
-        print(f"Bars avec note ≥3.0: {len(quality_bars)} sur {len(bars)}")
-        
         if not quality_bars:
-            print("ERROR: Aucun bar avec une note suffisante")
             return jsonify({"error": "Aucun bar bien noté trouvé dans la zone"}), 404, headers
         
-        # Calculer les temps de trajet en batch (beaucoup plus rapide)
-        print("Calcul batch des temps de trajet...")
+        # Calculer les temps de trajet en batch
         travel_times_results = calculate_travel_times_batch(quality_bars, positions)
         
         # Construire la liste finale des bars avec leurs temps
@@ -229,10 +204,7 @@ def find_optimal_bars(request):
                 'time_variance': statistics.variance(travel_times) if len(travel_times) > 1 else 0
             })
         
-        print(f"Bars finaux avec temps: {len(bars_with_times)}")
-        
         if not bars_with_times:
-            print("ERROR: Aucun bar avec temps de trajet valides")
             return jsonify({"error": "Impossible de calculer les temps de trajet"}), 500, headers
         
         # Trier par note d'abord (décroissant), puis par temps moyen (croissant)
@@ -248,15 +220,11 @@ def find_optimal_bars(request):
         }), 200, headers
 
     except auth.InvalidIdTokenError as e:
-        print(f"ERROR: Token invalide: {e}")
         return jsonify({"error": "Token invalide"}), 401, headers
     except ValueError as e:
-        print(f"ERROR: Données invalides: {e}")
         return jsonify({"error": str(e)}), 400, headers
     except Exception as e:
         print(f"ERROR: Exception non gérée dans find_optimal_bars: {e}")
-        import traceback
-        traceback.print_exc()
         return jsonify({"error": "Erreur interne du serveur"}), 500, headers
 
 
@@ -302,10 +270,8 @@ def search_bars_nearby(lat, lng, radius):
                 if is_real_bar and not is_hotel:
                     filtered_bars.append(place)
             
-            print(f"Bars filtrés: {len(filtered_bars)} sur {len(data['results'])} résultats")
             return filtered_bars
         else:
-            print(f"Places API error: {data['status']}")
             return []
             
     except Exception as e:
@@ -345,8 +311,6 @@ def calculate_travel_times_batch(bars, positions):
                 'origin': f"{position['location']['lat']},{position['location']['lng']}"
             })
         
-        print(f"Groupes de transport: {list(transport_groups.keys())}")
-        
         # Préparer toutes les destinations (bars)
         destinations = []
         for bar in limited_bars:
@@ -354,15 +318,10 @@ def calculate_travel_times_batch(bars, positions):
             destination = f"{bar_location['lat']},{bar_location['lng']}"
             destinations.append(destination)
         
-        # Résultats finaux : bar_idx -> [temps_personne_0, temps_personne_1, ...]
-        final_results = {}
-        
         # Faire une requête par groupe de transport
         all_travel_times = [None] * len(positions)  # Index par position originale
         
         for transport_mode, group_positions in transport_groups.items():
-            print(f"Calcul pour mode {transport_mode}: {len(group_positions)} personnes")
-            
             # Préparer les origines pour ce groupe
             origins = [pos_info['origin'] for pos_info in group_positions]
             
@@ -379,14 +338,11 @@ def calculate_travel_times_batch(bars, positions):
             if transport_mode == 'transit':
                 params['departure_time'] = 'now'
             
-            print(f"Requête batch {transport_mode}: {len(origins)} origines vers {len(destinations)} destinations")
-            
             response = requests.get(url, params=params, timeout=30)
             response.raise_for_status()
             data = response.json()
             
             if data['status'] != 'OK':
-                print(f"API Distance Matrix error pour {transport_mode}: {data['status']}")
                 continue
             
             # Parser les résultats pour ce groupe
@@ -408,6 +364,7 @@ def calculate_travel_times_batch(bars, positions):
                 all_travel_times[original_person_idx] = person_times
         
         # Construire les résultats finaux par bar
+        final_results = {}
         for bar_idx in range(len(limited_bars)):
             travel_times_for_bar = []
             valid_times = True
@@ -424,7 +381,6 @@ def calculate_travel_times_batch(bars, positions):
             if valid_times and len(travel_times_for_bar) == len(positions):
                 final_results[bar_idx] = travel_times_for_bar
         
-        print(f"Résultats batch finaux: {len(final_results)} bars avec temps valides pour tous les modes de transport")
         return final_results
         
     except Exception as e:
