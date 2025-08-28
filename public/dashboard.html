@@ -152,21 +152,190 @@
 
         .friend-card {
             background: transparent;
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            transition: background-color 0.2s ease;
-            cursor: default;
+            padding: 10px 15px;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
         .friend-card:hover {
             background: rgba(93, 64, 55, 0.05);
+            border-color: rgba(93, 64, 55, 0.2);
+        }
+
+        .friend-card.selected {
+            background: rgba(93, 64, 55, 0.1);
+            border-color: var(--primary-color);
+            transform: translateX(5px);
+        }
+
+        .friend-card.selected::after {
+            content: '✓';
+            position: absolute;
+            right: 10px;
+            color: var(--primary-color);
+            font-weight: bold;
+            font-size: 16px;
         }
 
         .friend-name {
             font-weight: 500;
             font-size: 14px;
             margin: 0;
+        }
+
+        /* Styles pour la section de recherche */
+        .search-section {
+            margin-top: 25px;
+            padding: 20px;
+            background: rgba(93, 64, 55, 0.05);
+            border-radius: 15px;
+            border: 2px solid rgba(93, 64, 55, 0.1);
+            text-align: center;
+        }
+
+        .selected-friends-count {
+            margin-bottom: 15px;
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 16px;
+        }
+
+        .find-bars-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            max-width: 250px;
+        }
+
+        .find-bars-btn:hover:not(:disabled) {
+            background: #4a2f26;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(93, 64, 55, 0.3);
+        }
+
+        .find-bars-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .search-status {
+            margin-top: 15px;
+            font-style: italic;
+            color: #666;
+        }
+
+        /* Styles pour les résultats de bars */
+        .bars-results {
+            margin-top: 30px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            border: 2px solid rgba(93, 64, 55, 0.1);
+        }
+
+        .bars-results h3 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 20px;
+        }
+
+        .bars-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .bar-card {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .bar-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary-color);
+        }
+
+        .bar-name {
+            font-weight: 600;
+            font-size: 18px;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+        }
+
+        .bar-address {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .bar-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .bar-rating {
+            color: #ff9800;
+        }
+
+        .bar-distance {
+            color: #4caf50;
+            font-weight: 500;
+        }
+
+        .bar-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .bar-action-btn {
+            background: none;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .bar-action-btn:hover {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .bar-action-btn.maps-btn {
+            background: #4285f4;
+            border-color: #4285f4;
+            color: white;
+        }
+
+        .bar-action-btn.maps-btn:hover {
+            background: #3367d6;
         }
 
         .loading-message {
@@ -341,6 +510,41 @@
                 min-width: 36px;
                 min-height: 36px;
             }
+            
+            /* Styles mobile pour les nouvelles fonctionnalités */
+            .search-section {
+                padding: 15px;
+                margin-top: 20px;
+            }
+            
+            .find-bars-btn {
+                padding: 12px 25px;
+                font-size: 15px;
+            }
+            
+            .bars-results {
+                margin-top: 25px;
+                padding: 20px;
+            }
+            
+            .bar-card {
+                padding: 15px;
+            }
+            
+            .bar-name {
+                font-size: 16px;
+            }
+            
+            .bar-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .bar-action-btn {
+                width: 100%;
+                text-align: center;
+                padding: 10px 15px;
+            }
         }
     </style>
 </head>
@@ -371,13 +575,32 @@
                             🗺️ Chargement de la carte sécurisée...
                         </div>
                     </div>
+                    
+                    <!-- Section résultats des bars (masquée initialement) -->
+                    <div id="bars-results" class="bars-results hidden">
+                        <h3>🍺 Bars recommandés</h3>
+                        <div id="bars-list" class="bars-list">
+                            <!-- Les bars seront affichés ici -->
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Section amis -->
+                <!-- Section sélection d'amis -->
                 <div class="friends-section">
-                    <h3>👥 Mes Amis (<span id="friends-count">0</span>)</h3>
+                    <h3>👥 Sélectionner les amis (<span id="friends-count">0</span>)</h3>
                     <div id="friends-list" class="friends-list">
                         <div class="loading-message">Chargement des amis...</div>
+                    </div>
+                    
+                    <!-- Bouton de recherche de bars -->
+                    <div id="search-section" class="search-section hidden">
+                        <div class="selected-friends-count">
+                            <span id="selected-count">0</span> ami(s) sélectionné(s)
+                        </div>
+                        <button id="find-bars-btn" class="button find-bars-btn" disabled>
+                            🔍 Trouver des bars
+                        </button>
+                        <div id="search-status" class="search-status"></div>
                     </div>
                 </div>
             </div>
@@ -392,6 +615,7 @@
         import { FRIEND_COLORS, getFriendColorById } from './js/color-config.js';
         import { auth, db } from './firebase-config.js';
         import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+        import { BarFinder } from './js/bar-finder.js';
 
         // Définir la fonction dans l'objet window pour la rendre globale
         window.initGoogleMaps = function() {
@@ -418,19 +642,13 @@
             showMessage('Erreur de chargement de la carte (clé API)', 'error');
         };
 
-        // Rendre la fonction logout globale
-        window.logout = async function() {
-            try {
-                await signOut(auth);
-                window.location.href = 'login.html';
-            } catch (error) {
-                console.error('Erreur déconnexion:', error);
-                showMessage('Erreur lors de la déconnexion', 'error');
-            }
-        };
+        // Import des modules Firebase
         import { doc, getDoc, setDoc, collection, query, where, getDocs, arrayUnion } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
         import { SecureMapManager } from './js/secure-maps.js';
+        
+        // Variables globales
         let secureMapManager = null;
+        let barFinder = null;
         let currentUser = null;
         let googleMapsLoaded = false;
         let userAuthenticated = false;
@@ -470,6 +688,13 @@
                 mapInitialized = true;
                 console.log('Carte initialisée avec succès');
                 
+                // Initialiser le BarFinder après la carte
+                if (!barFinder) {
+                    barFinder = new BarFinder(auth, db, secureMapManager);
+                    barFinder.setCurrentUser(currentUser);
+                    window.barFinder = barFinder; // Rendre accessible globalement
+                }
+                
             } catch (error) {
                 console.error('Erreur initialisation carte:', error);
                 showMessage('Erreur lors du chargement de la carte', 'error');
@@ -485,7 +710,11 @@
                 
                 // Charger les amis immédiatement
                 await loadFriendsList();
-                await loadFriendsList();
+                
+                // Mettre à jour barFinder si déjà initialisé
+                if (barFinder) {
+                    barFinder.setCurrentUser(currentUser);
+                }
                 
                 // Essayer d'initialiser la carte maintenant que l'utilisateur est authentifié
                 tryInitializeMap();
@@ -536,21 +765,28 @@
             }
         }
 
-        // Créer une carte d'ami ultra-simplifiée avec clic pour centrer la carte
+        // Créer une carte d'ami avec nouvelle fonctionnalité de sélection
         function createFriendCard(friendData, index, friendId) {
             const card = document.createElement('div');
             card.className = 'friend-card';
+            card.dataset.friendId = friendId;
 
             const color = FRIEND_COLORS[index % FRIEND_COLORS.length];
 
             card.innerHTML = `
-                <div class="friend-name" style="color: ${color}; cursor: pointer;">
+                <div class="friend-name" style="color: ${color};">
                     ${friendData.firstName || 'Ami'}
                 </div>
             `;
 
-            // Ajouter l'événement de clic pour centrer la carte
-            card.addEventListener('click', () => {
+            // Gestionnaire de clic pour sélection ET centrage carte
+            card.addEventListener('click', (e) => {
+                // Si barFinder existe, gérer la sélection
+                if (barFinder) {
+                    barFinder.toggleFriendSelection(friendId, card);
+                }
+                
+                // Centrer la carte sur l'ami (comportement existant)
                 if (secureMapManager) {
                     secureMapManager.centerOnFriend(friendId);
                 }

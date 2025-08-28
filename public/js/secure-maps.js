@@ -287,4 +287,161 @@ export class SecureMapManager {
         this.friendMarkers.forEach(({ marker }) => marker.setMap(null));
         this.friendMarkers = [];
     }
+
+    /**
+     * Ajoute des marqueurs pour les bars sur la carte
+     */
+    addBarMarkers(bars) {
+        if (!this.map || !bars) return;
+
+        // Supprimer les anciens marqueurs de bars s'il y en a
+        this.clearBarMarkers();
+
+        // Initialiser le tableau des marqueurs de bars
+        if (!this.barMarkers) {
+            this.barMarkers = [];
+        }
+
+        bars.forEach((bar, index) => {
+            const marker = new google.maps.Marker({
+                position: {
+                    lat: bar.location.lat,
+                    lng: bar.location.lng
+                },
+                map: this.map,
+                title: bar.name,
+                icon: {
+                    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                        <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="16" cy="16" r="14" fill="#ff6b35" stroke="#fff" stroke-width="3"/>
+                            <text x="16" y="21" text-anchor="middle" font-family="Arial" font-size="16" fill="#fff">🍺</text>
+                        </svg>
+                    `),
+                    scaledSize: new google.maps.Size(32, 32),
+                    anchor: new google.maps.Point(16, 16)
+                },
+                zIndex: 1000 + index
+            });
+
+            // Info window pour afficher les détails du bar
+            const infoWindow = new google.maps.InfoWindow({
+                content: this.createBarInfoWindowContent(bar)
+            });
+
+            marker.addListener('click', () => {
+                // Fermer toutes les autres info windows
+                this.closeAllBarInfoWindows();
+                infoWindow.open(this.map, marker);
+            });
+
+            this.barMarkers.push({
+                marker: marker,
+                infoWindow: infoWindow,
+                bar: bar
+            });
+        });
+
+        // Ajuster la vue pour inclure tous les marqueurs
+        this.fitMapToIncludeAllMarkers();
+    }
+
+    /**
+     * Crée le contenu HTML pour l'info window d'un bar
+     */
+    createBarInfoWindowContent(bar) {
+        const rating = bar.rating ? bar.rating.toFixed(1) : 'N/A';
+        const avgTime = Math.round(bar.avg_travel_time);
+        
+        return `
+            <div style="max-width: 250px; font-family: Arial, sans-serif;">
+                <h3 style="margin: 0 0 10px 0; color: #5d4037; font-size: 16px;">${bar.name}</h3>
+                <p style="margin: 0 0 8px 0; color: #666; font-size: 13px;">${bar.address}</p>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                    <span style="color: #ff9800; font-size: 13px;">⭐ ${rating}</span>
+                    <span style="color: #4caf50; font-size: 13px; font-weight: bold;">⏱️ ~${avgTime} min</span>
+                </div>
+                <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(bar.name + ' ' + bar.address)}" 
+                   target="_blank" 
+                   style="display: inline-block; background: #4285f4; color: white; padding: 6px 12px; 
+                          text-decoration: none; border-radius: 4px; font-size: 12px;">
+                    📍 Voir sur Maps
+                </a>
+            </div>
+        `;
+    }
+
+    /**
+     * Ferme toutes les info windows des bars
+     */
+    closeAllBarInfoWindows() {
+        if (this.barMarkers) {
+            this.barMarkers.forEach(({ infoWindow }) => {
+                infoWindow.close();
+            });
+        }
+    }
+
+    /**
+     * Supprime tous les marqueurs de bars
+     */
+    clearBarMarkers() {
+        if (this.barMarkers) {
+            this.barMarkers.forEach(({ marker, infoWindow }) => {
+                infoWindow.close();
+                marker.setMap(null);
+            });
+            this.barMarkers = [];
+        }
+    }
+
+    /**
+     * Ajuste la vue de la carte pour inclure tous les marqueurs
+     */
+    fitMapToIncludeAllMarkers() {
+        if (!this.map) return;
+
+        const bounds = new google.maps.LatLngBounds();
+        let hasMarkers = false;
+
+        // Inclure les marqueurs d'amis
+        this.friendMarkers.forEach(({ marker }) => {
+            bounds.extend(marker.getPosition());
+            hasMarkers = true;
+        });
+
+        // Inclure le marqueur utilisateur
+        if (this.userMarker) {
+            bounds.extend(this.userMarker.getPosition());
+            hasMarkers = true;
+        }
+
+        // Inclure les marqueurs de bars
+        if (this.barMarkers) {
+            this.barMarkers.forEach(({ marker }) => {
+                bounds.extend(marker.getPosition());
+                hasMarkers = true;
+            });
+        }
+
+        if (hasMarkers) {
+            this.map.fitBounds(bounds);
+            
+            // S'assurer que le zoom n'est pas trop élevé
+            google.maps.event.addListenerOnce(this.map, 'bounds_changed', () => {
+                if (this.map.getZoom() > 15) {
+                    this.map.setZoom(15);
+                }
+            });
+        }
+    }
+
+    /**
+     * Centre la carte sur une position spécifique
+     */
+    centerOnLocation(lat, lng, zoom = 14) {
+        if (this.map) {
+            this.map.setCenter({ lat, lng });
+            this.map.setZoom(zoom);
+        }
+    }
 }
