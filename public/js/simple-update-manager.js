@@ -9,7 +9,16 @@ class SimpleUpdateManager {
         console.log('🔄 Nettoyage du cache...');
         
         try {
-            // Vider tous les caches
+            // 1. Désinscrire le Service Worker
+            if ('serviceWorker' in navigator) {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                    await registration.unregister();
+                    console.log('🗑️ Service Worker désinscrit');
+                }
+            }
+            
+            // 2. Vider tous les caches
             if ('caches' in window) {
                 const cacheNames = await caches.keys();
                 await Promise.all(
@@ -18,13 +27,19 @@ class SimpleUpdateManager {
                 console.log('✅ Cache vidé');
             }
             
-            // Recharger avec cache-busting
-            window.location.href = window.location.href + '?v=' + Date.now();
+            // 3. Vider le cache du navigateur via location.reload(true) équivalent
+            // Utiliser window.location.replace() avec cache-busting agressif
+            const url = new URL(window.location.href);
+            url.searchParams.set('_cb', Date.now());
+            url.searchParams.set('_force', '1');
+            
+            // Forcer un hard reload équivalent
+            window.location.replace(url.toString());
             
         } catch (error) {
             console.error('❌ Erreur lors du nettoyage:', error);
-            // Fallback: rechargement forcé
-            window.location.reload(true);
+            // Fallback: rechargement forcé moderne
+            window.location.replace(window.location.href + (window.location.href.includes('?') ? '&' : '?') + '_force=' + Date.now());
         }
     }
     
