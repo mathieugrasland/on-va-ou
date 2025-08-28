@@ -345,30 +345,70 @@ def search_bars_optimized_zone(positions, base_radius):
                 distance = ((lat2 - lat1) ** 2 + (lng2 - lng1) ** 2) ** 0.5
                 max_distance = max(max_distance, distance)
         
-        # 2. Calculer le point central pondéré (geometric median approximé)
+        # 2. Calculer le point central optimal pour minimiser les temps de trajet
+        # Au lieu du geometric median basé sur les distances euclidiennes,
+        # on va essayer plusieurs points candidats et choisir celui qui minimise
+        # la variance des temps de trajet estimés
+        
+        # Point de départ : centre géométrique simple
         center_lat = statistics.mean(lats)
         center_lng = statistics.mean(lngs)
         
-        # Affiner le centre en calculant le point qui minimise la somme des distances
-        # (Algorithme de Weiszfeld simplifié)
-        for iteration in range(3):  # Quelques itérations suffisent
-            total_weight = 0
-            weighted_lat = 0
-            weighted_lng = 0
-            
+        # Créer une grille de points candidats autour du centre géométrique
+        # pour trouver le meilleur point de recherche
+        best_center_lat, best_center_lng = center_lat, center_lng
+        min_time_variance = float('inf')
+        
+        # Taille de la grille de recherche basée sur la dispersion du groupe
+        search_grid_size = max(max_distance * 50, 0.002)  # Environ 200m en degrés
+        
+        print(f"Recherche du centre optimal dans une grille de {search_grid_size:.4f}° autour du centre géométrique")
+        
+        # Tester 9 points dans une grille 3x3 autour du centre
+        test_centers = []
+        for lat_offset in [-search_grid_size, 0, search_grid_size]:
+            for lng_offset in [-search_grid_size, 0, search_grid_size]:
+                test_lat = center_lat + lat_offset
+                test_lng = center_lng + lng_offset
+                test_centers.append((test_lat, test_lng))
+        
+        for test_lat, test_lng in test_centers:
+            # Estimer la variance des temps de trajet pour ce point
+            estimated_times = []
             for pos in positions:
-                lat, lng = pos['location']['lat'], pos['location']['lng']
-                # Distance au centre actuel
-                dist = ((lat - center_lat) ** 2 + (lng - center_lng) ** 2) ** 0.5
-                if dist > 0:
-                    weight = 1 / dist  # Poids inversement proportionnel à la distance
-                    weighted_lat += lat * weight
-                    weighted_lng += lng * weight
-                    total_weight += weight
+                participant_lat = pos['location']['lat']
+                participant_lng = pos['location']['lng']
+                
+                # Distance euclidienne approximative en km
+                lat_diff = (test_lat - participant_lat) * 111
+                lng_diff = (test_lng - participant_lng) * 111 * 0.64
+                distance_km = (lat_diff ** 2 + lng_diff ** 2) ** 0.5
+                
+                # Estimation grossière du temps de trajet (vitesse moyenne 4 km/h à pied)
+                transport_mode = pos.get('transportMode', 'walking')
+                if transport_mode == 'car':
+                    speed_kmh = 25  # Vitesse urbaine avec embouteillages
+                elif transport_mode == 'bicycle':
+                    speed_kmh = 15  # Vitesse vélo urbain
+                elif transport_mode == 'public_transport':
+                    speed_kmh = 20  # Vitesse transports en commun avec attentes
+                else:  # walking
+                    speed_kmh = 4   # Vitesse piéton
+                
+                estimated_time = (distance_km / speed_kmh) * 60  # Conversion en minutes
+                estimated_times.append(estimated_time)
             
-            if total_weight > 0:
-                center_lat = weighted_lat / total_weight
-                center_lng = weighted_lng / total_weight
+            # Calculer la variance des temps estimés
+            if len(estimated_times) > 1:
+                time_variance = statistics.variance(estimated_times)
+                
+                # Si cette variance est plus faible, c'est un meilleur centre
+                if time_variance < min_time_variance:
+                    min_time_variance = time_variance
+                    best_center_lat, best_center_lng = test_lat, test_lng
+        
+        center_lat, center_lng = best_center_lat, best_center_lng
+        print(f"Centre optimal trouvé: ({center_lat:.4f},{center_lng:.4f}) avec variance temps: {min_time_variance:.2f}")
         
         # 3. Calculer un rayon adaptatif basé sur la dispersion
         # Le rayon doit couvrir une zone où tous peuvent se retrouver équitablement
@@ -385,29 +425,54 @@ def search_bars_optimized_zone(positions, base_radius):
         # 4. Rechercher dans la zone optimisée
         candidate_bars = search_bars_nearby(center_lat, center_lng, adaptive_radius, max_bars=50)
         
-        # 5. Filtrage supplémentaire basé sur la distance aux participants extrêmes
-        if len(candidate_bars) > 25:  # Si trop de candidats, filtrer plus finement
-            # Calculer pour chaque bar sa distance aux participants les plus éloignés
-            filtered_bars = []
+        # 5. Filtrage équilibré basé sur l'équité géographique ET la qualité
+        if len(candidate_bars) > 25:  # Si trop de candidats, filtrer plus intelligemment
+            # Calculer pour chaque bar un score d'équité composite
+            scored_bars = []
             for bar in candidate_bars:
                 bar_lat = bar['geometry']['location']['lat']
                 bar_lng = bar['geometry']['location']['lng']
                 
-                # Calculer la distance max du bar à tous les participants
-                max_distance_to_participants = 0
+                # 1. Calculer les distances approximatives à tous les participants
+                distances_to_participants = []
                 for pos in positions:
                     participant_lat = pos['location']['lat']
                     participant_lng = pos['location']['lng']
-                    distance = ((bar_lat - participant_lat) ** 2 + 
-                               (bar_lng - participant_lng) ** 2) ** 0.5
-                    max_distance_to_participants = max(max_distance_to_participants, distance)
+                    
+                    # Distance euclidienne en km (approximative)
+                    lat_diff = (bar_lat - participant_lat) * 111
+                    lng_diff = (bar_lng - participant_lng) * 111 * 0.64
+                    distance_km = (lat_diff ** 2 + lng_diff ** 2) ** 0.5
+                    distances_to_participants.append(distance_km)
                 
-                bar['_max_distance_to_participants'] = max_distance_to_participants
-                filtered_bars.append(bar)
+                # 2. Calculer des métriques d'équité
+                avg_distance = statistics.mean(distances_to_participants)
+                max_distance = max(distances_to_participants)
+                min_distance = min(distances_to_participants)
+                distance_spread = max_distance - min_distance
+                
+                # Score d'équité géographique (plus bas = plus équitable)
+                equity_score = distance_spread / avg_distance if avg_distance > 0 else float('inf')
+                
+                # 3. Prendre en compte la qualité du bar
+                rating = bar.get('rating', 3.0)  # Default rating si pas de note
+                quality_bonus = (rating - 3.0) * 0.1  # Bonus/malus basé sur la note
+                
+                # 4. Score composite (équité + qualité)
+                # Plus le score est bas, mieux c'est
+                composite_score = equity_score - quality_bonus + avg_distance * 0.1
+                
+                bar['_equity_score'] = equity_score
+                bar['_avg_distance'] = avg_distance
+                bar['_max_distance'] = max_distance
+                bar['_composite_score'] = composite_score
+                scored_bars.append(bar)
             
-            # Trier par distance maximale aux participants (plus équitable)
-            filtered_bars.sort(key=lambda x: x['_max_distance_to_participants'])
-            candidate_bars = filtered_bars[:25]  # Limiter à 25 pour l'API
+            # Trier par score composite (équité + distance + qualité)
+            scored_bars.sort(key=lambda x: x['_composite_score'])
+            candidate_bars = scored_bars[:25]  # Limiter à 25 pour l'API
+            
+            print(f"Filtrage équilibré: gardé {len(candidate_bars)} bars les plus équitables (scores 0.{candidate_bars[0]['_composite_score']:.2f} à {candidate_bars[-1]['_composite_score']:.2f})")
         
         return candidate_bars, center_lat, center_lng
         
