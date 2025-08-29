@@ -1255,8 +1255,17 @@
                 if (requests.sent && requests.sent.length > 0) {
                     console.log('🔍 Vérification des demandes envoyées:', requests.sent);
                     const validSent = [];
+                    const currentUserFriends = userData.friends || [];
+                    
                     for (const targetUid of requests.sent) {
                         try {
+                            // Vérifier d'abord si la personne est déjà dans nos amis
+                            if (currentUserFriends.includes(targetUid)) {
+                                console.log(`🧹 Demande envoyée supprimée - personne déjà amie: ${targetUid}`);
+                                needsUpdate = true;
+                                continue; // Passer au suivant sans ajouter à validSent
+                            }
+                            
                             const targetDoc = await getDoc(doc(db, 'users', targetUid));
                             if (targetDoc.exists()) {
                                 const targetData = targetDoc.data();
