@@ -376,7 +376,22 @@ export class SecureMapManager {
             this.barMarkers = [];
         }
 
-        bars.forEach((bar, index) => {
+        // Trier les bars pour afficher les spéciaux au-dessus des standards
+        // Les bars standards en premier (z-index plus bas), puis les spéciaux (z-index plus haut)
+        const sortedBars = [...bars].sort((a, b) => {
+            const getTypeOrder = (type) => {
+                switch (type) {
+                    case 'standard': return 1; // Affichés en premier (dessous)
+                    case 'fastest': return 2;
+                    case 'most_balanced': return 3;
+                    case 'fastest_and_balanced': return 4; // Affiché en dernier (dessus)
+                    default: return 1;
+                }
+            };
+            return getTypeOrder(a.marker_type) - getTypeOrder(b.marker_type);
+        });
+
+        sortedBars.forEach((bar, index) => {
             // Déterminer l'emoji selon le type de bar
             let emojiIcon = '📍'; // Par défaut
             let fontSize = '16'; // Taille de police par défaut
@@ -389,6 +404,14 @@ export class SecureMapManager {
                 }
             }
             
+            // Calculer le z-index basé sur le type pour s'assurer que les spéciaux sont au-dessus
+            let zIndex = 1000 + index;
+            if (bar.marker_type === 'fastest_and_balanced') {
+                zIndex += 1000; // Z-index le plus élevé
+            } else if (bar.marker_type === 'fastest' || bar.marker_type === 'most_balanced') {
+                zIndex += 500; // Z-index moyen
+            }
+            
             const marker = new google.maps.Marker({
                 position: {
                     lat: bar.location.lat,
@@ -399,14 +422,13 @@ export class SecureMapManager {
                 icon: {
                     url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
                         <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="16" cy="16" r="14" fill="white" fill-opacity="0.85" stroke="#333" stroke-width="1.5"/>
-                            <text x="16" y="22" text-anchor="middle" font-size="${fontSize}" fill="#333" style="text-shadow: 0 0 2px white;">${emojiIcon}</text>
+                            <text x="16" y="22" text-anchor="middle" font-size="${fontSize}" fill="#333" style="text-shadow: 0 0 3px white, 0 0 6px white;">${emojiIcon}</text>
                         </svg>
                     `),
                     scaledSize: new google.maps.Size(32, 32),
                     anchor: new google.maps.Point(16, 16)
                 },
-                zIndex: 1000 + index
+                zIndex: zIndex
             });
 
             // Info window pour afficher les détails du bar
