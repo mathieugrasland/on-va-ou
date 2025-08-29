@@ -1,0 +1,214 @@
+/* ===================================
+   🃏 CARTES - BARS, AMIS, ETC.
+   =================================== */
+
+/* Carte individuelle de bar */
+.bar-card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow-light);
+    transition: all var(--transition-speed);
+    border: 1px solid var(--input-border);
+    position: relative;
+}
+
+.bar-card:hover {
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+}
+
+.bar-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 8px;
+}
+
+.bar-address {
+    color: #666;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+}
+
+.bar-info {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.bar-rating, .bar-distance {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: rgba(93, 64, 55, 0.1);
+    color: var(--primary-color);
+}
+
+/* Informations sur les temps de trajet */
+.bar-time-info {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.time-spread {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: rgba(255, 183, 77, 0.1);
+    color: #ff8f00;
+}
+
+/* Indicateurs de déséquilibre */
+.balance-good {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: rgba(76, 175, 80, 0.1);
+    color: #4caf50;
+}
+
+.balance-ok {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: rgba(255, 193, 7, 0.1);
+    color: #ff9800;
+}
+
+.balance-poor {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: rgba(244, 67, 54, 0.1);
+    color: #f44336;
+}
+
+/* Actions des bars */
+.bar-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* Détails des temps de trajet */
+.bar-details {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--input-border);
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.travel-times h4 {
+    color: var(--primary-color);
+    margin-bottom: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.travel-time-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(93, 64, 55, 0.05);
+    border-radius: 8px;
+    margin-bottom: 6px;
+}
+
+.person-name {
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+.travel-time {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Cartes d'amis */
+.friend-request-item, .friend-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.friend-item {
+    background: var(--light-bg);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all var(--transition-speed);
+}
+
+.friend-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transform: translateY(-1px);
+}
+
+.friend-item.my-location {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: white;
+}
+
+.friend-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.friend-name {
+    font-weight: 600;
+    color: var(--primary-color);
+    flex: 1;
+}
+
+.friend-email {
+    font-size: 14px;
+    color: #666;
+}
+
+.friend-address {
+    font-size: 0.85em;
+    opacity: 0.7;
+    margin-top: 4px;
+    display: block;
+}
+
+.request-status {
+    font-size: 14px;
+    color: #888;
+    font-style: italic;
+}
+
+.request-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.no-requests, .no-friends {
+    text-align: center;
+    color: #888;
+    font-style: italic;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 8px;
+}

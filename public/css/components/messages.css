@@ -1,0 +1,31 @@
+/* ===================================
+   💬 MESSAGES - ERREURS, SUCCÈS, WARNINGS
+   =================================== */
+
+/* Messages d'erreur et de succès */
+.error-message {
+    background: var(--error-bg);
+    color: #c62828;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border-left: 4px solid var(--error-color);
+}
+
+.success-message {
+    background: var(--success-bg);
+    color: #2e7d32;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border-left: 4px solid var(--success-color);
+}
+
+.warning-message {
+    background: var(--warning-bg);
+    color: #f57c00;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border-left: 4px solid var(--warning-color);
+}

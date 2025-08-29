@@ -1,7 +1,7 @@
 // Import des fonctions Firestore v9+
 import { doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 // Import de la configuration des couleurs
-import { FRIEND_COLORS, getFriendColorById } from './color-config.js';
+import { FRIEND_COLORS, getFriendColorById } from '../config/color-config.js';
 
 class SecureGeocodingService {
     constructor(auth = null) {

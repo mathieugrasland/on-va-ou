@@ -1,0 +1,154 @@
+/* ===================================
+   🔘 BOUTONS - TOUS LES STYLES
+   =================================== */
+
+/* Boutons de base */
+button, .button {
+    background: var(--primary-color);
+    color: var(--light-text);
+    border: none;
+    padding: 15px 30px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    box-shadow: var(--shadow-light);
+}
+
+button:hover, .button:hover {
+    background: #4a2c20;
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+}
+
+button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Boutons secondaires */
+.button-secondary {
+    background: var(--accent-color);
+    color: var(--dark-text);
+}
+
+.button-secondary:hover {
+    background: #ff8f00;
+    color: var(--light-text);
+}
+
+/* Boutons d'en-tête */
+.header-actions .button,
+.header-actions .button-secondary,
+.header-actions .button-logout {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    min-width: 100px;
+    text-align: center;
+}
+
+/* Bouton de déconnexion */
+.button-logout {
+    background: #dc3545;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.button-logout:hover {
+    background: #c82333;
+}
+
+/* Petits boutons */
+.button-small {
+    padding: 6px 12px;
+    font-size: 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.button-accept {
+    background: #4caf50;
+    color: white;
+}
+
+.button-accept:hover {
+    background: #45a049;
+}
+
+.button-reject {
+    background: #f44336;
+    color: white;
+}
+
+.button-reject:hover {
+    background: #da190b;
+}
+
+.button-remove {
+    background: #ff9800;
+    color: white;
+}
+
+.button-remove:hover {
+    background: #f57c00;
+}
+
+/* Boutons d'action pour les bars */
+.bar-action-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.bar-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.details-btn {
+    background: var(--primary-color);
+    color: white;
+}
+
+.details-btn:hover {
+    background: #4a2c24;
+}
+
+.maps-btn {
+    background: #4285f4;
+    color: white;
+}
+
+.maps-btn:hover {
+    background: #3367d6;
+}
+
+.bar-action-btn:not(.details-btn):not(.maps-btn) {
+    background: var(--accent-color);
+    color: var(--primary-color);
+}
+
+.bar-action-btn:not(.details-btn):not(.maps-btn):hover {
+    background: #ffaa3a;
+}

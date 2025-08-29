@@ -1,0 +1,32 @@
+/* ===================================
+   🎨 ON VA OÙ - STYLES PRINCIPAUX
+   Structure CSS modulaire et organisée
+   =================================== */
+
+/* 🔧 BASE - Fondations */
+@import './base/variables.css';
+@import './base/reset.css';
+@import './base/typography.css';
+
+/* 📐 LAYOUT - Structure */
+@import './layout/containers.css';
+
+/* 🧩 COMPONENTS - Composants réutilisables */
+@import './components/buttons.css';
+@import './components/forms.css';
+@import './components/messages.css';
+@import './components/cards.css';
+
+/* 📄 PAGES - Styles spécifiques */
+@import './pages/dashboard.css';
+@import './pages/profile.css';
+@import './pages/maps.css';
+
+/* 🛠️ UTILITIES - Utilitaires et helpers */
+@import './utils/utilities.css';
+@import './utils/badges.css';
+@import './utils/responsive.css';
+
+/* ===================================
+   ✨ Fin de l'importation des styles
+   =================================== */

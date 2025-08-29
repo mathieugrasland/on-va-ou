@@ -1,0 +1,35 @@
+/* ===================================
+   🔄 RESET CSS - NORMALISATION
+   =================================== */
+
+/* Reset de base */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    color: var(--dark-text);
+    background-color: var(--light-bg);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Pour les pages d'authentification (login, register, index) - centrage vertical */
+body.auth-page {
+    align-items: center;
+}
+
+/* Pour les pages de dashboard et profil - pas de centrage, pleine largeur */
+body:not(.auth-page) {
+    display: block;
+    padding: 0;
+    margin: 0;
+}

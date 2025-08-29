@@ -1,0 +1,126 @@
+/* ===================================
+   🗺️ CARTES ET GÉOLOCALISATION
+   =================================== */
+
+.map-container {
+    display: flex;
+    gap: 20px;
+    height: 600px;
+    background: var(--light-bg);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-light);
+}
+
+.friends-panel {
+    width: 300px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-right: 1px solid var(--input-border);
+    overflow-y: auto;
+}
+
+.friends-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.my-location .checkmark {
+    border-color: rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.1);
+}
+
+.my-location .friend-checkbox input:checked + .checkmark {
+    background: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.5);
+}
+
+.map-wrapper {
+    flex: 1;
+    position: relative;
+}
+
+.map {
+    width: 100%;
+    height: 100%;
+    border-radius: 0 12px 12px 0;
+}
+
+.map-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--light-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.map-loading .loading-spinner {
+    font-size: 3em;
+    animation: spin 2s linear infinite;
+}
+
+/* Styles pour les marqueurs personnalisés Google Maps */
+.marker-popup {
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    padding: 8px;
+}
+
+.marker-popup strong {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+/* Correction taille bouton fermeture InfoWindow Google Maps */
+.gm-ui-hover-effect {
+    width: 20px !important;
+    height: 20px !important;
+}
+
+.gm-ui-hover-effect > span {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 14px !important;
+    line-height: 20px !important;
+}
+
+/* InfoWindow custom styles */
+.gm-style .gm-style-iw-c {
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+}
+
+.gm-style .gm-style-iw-t::after {
+    background: white !important;
+}
+
+/* Container principal des résultats */
+#bars-results {
+    margin-top: 30px;
+    padding: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 12px;
+    box-shadow: var(--shadow-light);
+}
+
+#bars-results h3 {
+    color: var(--primary-color);
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+/* Liste des bars */
+#bars-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}

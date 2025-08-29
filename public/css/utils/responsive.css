@@ -1,0 +1,168 @@
+/* ===================================
+   📱 RESPONSIVE - MEDIA QUERIES
+   =================================== */
+
+/* Tablettes et mobiles */
+@media (max-width: 768px) {
+    body {
+        overflow-y: auto;
+        align-items: flex-start;
+        padding: 20px 0;
+    }
+    
+    .container {
+        margin: 20px auto;
+        max-height: none;
+        overflow-y: visible;
+        padding: 30px 20px;
+    }
+    
+    .background-image {
+        filter: blur(2px) brightness(0.9) opacity(0.7);
+    }
+    
+    h1 {
+        font-size: 1.8rem;
+    }
+    
+    .dashboard-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .profile-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .header-actions {
+        justify-content: center;
+    }
+    
+    .actions {
+        gap: 10px;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-section {
+        padding: 20px 15px;
+    }
+    
+    .form-group-inline {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .form-group-inline button {
+        margin-top: 10px;
+    }
+    
+    .friend-request-item, .friend-item {
+        flex-direction: column;
+        gap: 15px;
+        align-items: stretch;
+        text-align: center;
+    }
+    
+    .request-actions {
+        justify-content: center;
+    }
+    
+    /* Cartes */
+    .map-container {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    .friends-panel {
+        width: 100%;
+        max-height: 200px;
+        border-right: none;
+        border-bottom: 1px solid var(--input-border);
+    }
+    
+    .map-wrapper {
+        height: 400px;
+    }
+    
+    .map {
+        border-radius: 0 0 12px 12px;
+    }
+    
+    /* Bars */
+    #bars-results {
+        margin: 20px -20px 0 -20px;
+        border-radius: 0;
+    }
+    
+    .bar-actions {
+        justify-content: center;
+    }
+    
+    .bar-action-btn {
+        flex: 1;
+        justify-content: center;
+        min-width: auto;
+    }
+}
+
+/* Petits mobiles */
+@media (max-width: 480px) {
+    .container {
+        padding: 25px 15px;
+        margin: 15px;
+        border-radius: 15px;
+    }
+    
+    h1 {
+        font-size: 1.6rem;
+        margin-bottom: 25px;
+    }
+    
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    button, .button {
+        padding: 12px 18px;
+        font-size: 15px;
+    }
+    
+    .dashboard-section {
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .map-container {
+        margin: 0 -20px;
+        border-radius: 0;
+    }
+    
+    .friends-panel {
+        border-radius: 0;
+    }
+    
+    .map {
+        border-radius: 0;
+    }
+    
+    .bar-card {
+        padding: 15px;
+    }
+    
+    .bar-info {
+        justify-content: center;
+    }
+    
+    .bar-actions {
+        flex-direction: column;
+    }
+    
+    .bar-action-btn {
+        width: 100%;
+    }
+}
