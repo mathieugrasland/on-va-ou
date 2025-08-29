@@ -462,45 +462,35 @@ export class BarFinder {
             balanceIndicator = '<span class="balance-poor">⚖️ Déséquilibré</span>';
         }
         
-        // Déterminer l'affichage du badge spécial et des mentions
+        // Déterminer l'affichage du badge spécial (sans mentions top choice)
         let specialBadge = '';
-        let topChoiceMention = '';
         
-        // Gérer le cas spécial où le bar est à la fois le plus rapide ET le plus équitable
-        if (bar.marker_type === 'fastest_and_balanced') {
-            topChoiceMention = '<div class="top-choice-mention combined-choice">🏆 1er CHOIX - Bar le plus équitable ET le plus rapide</div>';
-            specialBadge = '<div class="special-badge combined-badge">⚖️⚡ Plus équitable ET plus rapide</div>';
-        } else {
-            // Pour les deux premiers choix, ajouter une mention spéciale
-            if (displayIndex === 0 && bar.marker_type === 'most_balanced') {
-                topChoiceMention = '<div class="top-choice-mention first-choice">🏆 1er CHOIX - Bar le plus équitable</div>';
-            } else if ((displayIndex === 0 && bar.marker_type === 'fastest') || (displayIndex === 1 && bar.marker_type === 'fastest')) {
-                topChoiceMention = '<div class="top-choice-mention second-choice">⚡ 2ème CHOIX - Bar le plus rapide</div>';
+        // Gérer tous les types de bars spéciaux avec seulement les badges
+        if (bar.marker_emoji && bar.marker_type) {
+            let badgeClass = '';
+            let badgeText = '';
+            
+            switch (bar.marker_type) {
+                case 'fastest':
+                    badgeClass = 'special-badge fastest-badge';
+                    badgeText = `${bar.marker_emoji} Plus rapide`;
+                    break;
+                case 'most_balanced':
+                    badgeClass = 'special-badge balanced-badge';
+                    badgeText = `${bar.marker_emoji} Plus équitable`;
+                    break;
+                case 'fastest_and_balanced':
+                    badgeClass = 'special-badge combined-badge';
+                    badgeText = `${bar.marker_emoji} Plus équitable ET plus rapide`;
+                    break;
             }
             
-            if (bar.marker_emoji && bar.marker_type) {
-                let badgeClass = '';
-                let badgeText = '';
-                
-                switch (bar.marker_type) {
-                    case 'fastest':
-                        badgeClass = 'special-badge fastest-badge';
-                        badgeText = `${bar.marker_emoji} Plus rapide`;
-                        break;
-                    case 'most_balanced':
-                        badgeClass = 'special-badge balanced-badge';
-                        badgeText = `${bar.marker_emoji} Plus équitable`;
-                        break;
-                }
-                
-                if (badgeClass) {
-                    specialBadge = `<div class="${badgeClass}">${badgeText}</div>`;
-                }
+            if (badgeClass) {
+                specialBadge = `<div class="${badgeClass}">${badgeText}</div>`;
             }
         }
         
         card.innerHTML = `
-            ${topChoiceMention}
             ${specialBadge}
             <div class="bar-name">${bar.name}</div>
             <div class="bar-address">${bar.address}</div>
