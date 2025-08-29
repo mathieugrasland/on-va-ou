@@ -158,17 +158,16 @@ def find_optimal_bars(request):
         
         positions = request_json['positions']
         max_bars = request_json.get('max_bars', 25)  # Augmenté pour profiter de la limite API
-        search_radius = min(request_json.get('search_radius', 400), 2500)  # Élargi jusqu'à 2.5km pour permettre les extensions
         
         if len(positions) < 2:
             return jsonify({"error": "Au moins 2 positions requises"}), 400, headers
 
         start_time = time.time()
-        print(f"Début recherche bars pour {len(positions)} positions")
+        print(f"Début recherche bars pour {len(positions)} positions (rayon adaptatif)")
 
         # Calculer une zone de recherche optimisée basée sur la géométrie du groupe
         search_start = time.time()
-        candidate_bars, center_lat, center_lng = search_bars_optimized_zone(positions, search_radius)
+        candidate_bars, center_lat, center_lng = search_bars_optimized_zone(positions)
         search_time = time.time() - search_start
         print(f"Recherche bars terminée: {len(candidate_bars)} bars trouvés en {search_time:.2f}s")
         
@@ -364,7 +363,7 @@ def cluster_nearby_participants(positions, distance_threshold_km=0.6):
         return [[i] for i in range(len(positions))]
 
 
-def search_bars_optimized_zone(positions, base_radius):
+def search_bars_optimized_zone(positions):
     """Recherche des bars dans une zone optimisée basée sur la géométrie du groupe"""
     try:
         # 1. Analyser la dispersion géographique du groupe
@@ -480,8 +479,21 @@ def search_bars_optimized_zone(positions, base_radius):
         print(f"Zone optimisée: centre=({center_lat:.4f},{center_lng:.4f}), rayon={adaptive_radius:.0f}m")
         print(f"Calcul du rayon: {len(participant_clusters)} clusters, distance max cluster->centre={max_cluster_distance_km:.1f}km, rayon=2/3*{max_cluster_distance_km:.1f}km={adaptive_radius:.0f}m")
         
-        # 4. Rechercher dans la zone optimisée
+        # 4. Rechercher dans la zone optimisée avec retry automatique si nécessaire
         candidate_bars = search_bars_nearby(center_lat, center_lng, adaptive_radius, max_bars=50)
+        
+        # Si aucun bar trouvé, essayer avec un rayon élargi (x1.5 puis x2.5)
+        retry_count = 0
+        while len(candidate_bars) == 0 and retry_count < 2:
+            retry_count += 1
+            expanded_radius = adaptive_radius * (1.5 if retry_count == 1 else 2.5)
+            print(f"Aucun bar trouvé, tentative {retry_count}/2 avec rayon élargi: {expanded_radius:.0f}m")
+            candidate_bars = search_bars_nearby(center_lat, center_lng, expanded_radius, max_bars=50)
+        
+        if len(candidate_bars) == 0:
+            print(f"Aucun bar trouvé après {retry_count + 1} tentatives")
+        else:
+            print(f"Bars trouvés après {retry_count + 1} tentative(s): {len(candidate_bars)} bars")
         
         # 5. Filtrage équilibré basé sur l'équité géographique ET la qualité
         if len(candidate_bars) > 25:  # Si trop de candidats, filtrer plus intelligemment
@@ -536,10 +548,10 @@ def search_bars_optimized_zone(positions, base_radius):
         
     except Exception as e:
         print(f"Erreur recherche optimisée: {e}")
-        # Fallback vers l'ancienne méthode
+        # Fallback vers l'ancienne méthode avec un rayon par défaut
         center_lat = statistics.mean([pos['location']['lat'] for pos in positions])
         center_lng = statistics.mean([pos['location']['lng'] for pos in positions])
-        bars = search_bars_nearby(center_lat, center_lng, max(base_radius * 2, 2000), max_bars=25)
+        bars = search_bars_nearby(center_lat, center_lng, 2000, max_bars=25)  # 2km par défaut en cas d'erreur
         return bars, center_lat, center_lng
 
 

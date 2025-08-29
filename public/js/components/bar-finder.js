@@ -88,7 +88,7 @@ export class BarFinder {
     /**
      * Trouve les bars optimaux pour les amis sélectionnés
      */
-    async findOptimalBars(searchRadius = 400) {
+    async findOptimalBars(retryCount = 0) {
         if (this.selectedFriends.size === 0) return;
 
         const statusEl = document.getElementById('search-status');
@@ -114,11 +114,10 @@ export class BarFinder {
                 throw new Error(`Seulement ${positions.length} position(s) trouvée(s). Il faut au moins 2 personnes avec des adresses valides.`);
             }
             
-            const radiusKm = (searchRadius / 1000).toFixed(1);
-            statusEl.textContent = `Recherche de bars candidats et calcul des temps de trajet (zone ${radiusKm}km)...`;
+            statusEl.textContent = `Recherche de bars candidats et calcul des temps de trajet (zone adaptative)...`;
             
             // Appeler la Cloud Function pour trouver les bars
-            const bars = await this.callFindBarsCloudFunction(positions, searchRadius);
+            const bars = await this.callFindBarsCloudFunction(positions);
             
             if (bars && bars.length > 0) {
                 statusEl.textContent = `${bars.length} bar(s) optimal(s) trouvé(s) selon les temps de trajet !`;
@@ -142,7 +141,7 @@ export class BarFinder {
             console.log('isNoBarFoundError:', isNoBarFoundError);
             
             if (isNoBarFoundError) {
-                await this.handleNoBarFoundError(searchRadius);
+                await this.handleNoBarFoundError(retryCount);
             } else {
                 statusEl.textContent = `Erreur: ${error.message}`;
                 this.showMessage('Erreur lors de la recherche de bars', 'error');
@@ -155,34 +154,32 @@ export class BarFinder {
     }
 
     /**
-     * Gère le cas où aucun bar n'est trouvé et propose d'élargir la zone
+     * Gère le cas où aucun bar n'est trouvé et propose de réessayer avec une zone élargie
      */
-    async handleNoBarFoundError(currentRadius) {
+    async handleNoBarFoundError(retryCount) {
         const statusEl = document.getElementById('search-status');
-        const radiusKm = (currentRadius / 1000).toFixed(1);
         
-        statusEl.textContent = `Aucun bar trouvé dans un rayon de ${radiusKm}km`;
+        statusEl.textContent = `Aucun bar trouvé dans la zone adaptative`;
         
-        // Proposer d'élargir la zone seulement si on n'a pas déjà élargi plusieurs fois
-        if (currentRadius < 2400) { // Limite à 2.4km maximum (correspondant à la limite serveur de 2.5km)
-            const expandRadius = currentRadius + 1000; // Ajouter 1km
-            const expandRadiusKm = (expandRadius / 1000).toFixed(1);
+        // Proposer de réessayer seulement si on n'a pas déjà essayé plusieurs fois
+        if (retryCount < 2) { // Limite à 2 tentatives supplémentaires
+            const attemptNumber = retryCount + 1;
             
-            const userWantsExpand = confirm(
-                `Aucun bar trouvé dans un rayon de ${radiusKm}km.\n\n` +
-                `Voulez-vous élargir la zone de recherche à ${expandRadiusKm}km ?`
+            const userWantsRetry = confirm(
+                `Aucun bar trouvé avec le calcul automatique de la zone.\n\n` +
+                `Voulez-vous réessayer avec une zone élargie (tentative ${attemptNumber + 1}/3) ?`
             );
             
-            if (userWantsExpand) {
-                statusEl.textContent = `Extension de la zone de recherche à ${expandRadiusKm}km...`;
-                await this.findOptimalBars(expandRadius);
+            if (userWantsRetry) {
+                statusEl.textContent = `Nouvelle tentative avec zone élargie (${attemptNumber + 1}/3)...`;
+                await this.findOptimalBars(retryCount + 1);
                 return;
             }
         }
         
         // Si l'utilisateur refuse ou si on a atteint la limite
         this.showMessage(
-            `Aucun bar trouvé dans un rayon de ${radiusKm}km. Essayez avec d'autres amis ou une zone différente.`, 
+            `Aucun bar trouvé après ${retryCount + 1} tentative(s). Essayez avec d'autres amis ou une configuration différente.`, 
             'info'
         );
     }
@@ -266,9 +263,9 @@ export class BarFinder {
     /**
      * Appelle la Cloud Function pour trouver les bars optimaux
      */
-    async callFindBarsCloudFunction(positions, searchRadius = 400) {
+    async callFindBarsCloudFunction(positions) {
         console.log('Appel Cloud Function avec positions:', positions);
-        console.log('Rayon de recherche:', searchRadius, 'm');
+        console.log('Utilisation du rayon adaptatif automatique');
         
         const idToken = await this.currentUser.getIdToken();
         console.log('Token récupéré, longueur:', idToken.length);
@@ -286,8 +283,7 @@ export class BarFinder {
                 },
                 body: JSON.stringify({
                     positions: positions,
-                    max_bars: 25,  // Demander le maximum possible avec la limite API
-                    search_radius: searchRadius
+                    max_bars: 25  // Demander le maximum possible avec la limite API
                 }),
                 signal: controller.signal
             });
