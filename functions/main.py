@@ -450,17 +450,35 @@ def search_bars_optimized_zone(positions, base_radius):
         center_lat, center_lng = best_center_lat, best_center_lng
         print(f"Centre optimal trouvé: ({center_lat:.4f},{center_lng:.4f}) avec variance temps: {min_time_variance:.2f}")
         
-        # 3. Calculer un rayon adaptatif basé sur la dispersion
-        # Le rayon doit couvrir une zone où tous peuvent se retrouver équitablement
-        group_span_km = max_distance * 111  # Conversion approximative degrés -> km
-        adaptive_radius = max(
-            base_radius,
-            group_span_km * 300,  # 30% de la distance max du groupe
-            800  # Minimum 800m pour avoir des choix
-        )
-        adaptive_radius = min(adaptive_radius, 2000)  # Maximum 2km pour éviter trop de dispersion
+        # 3. Identifier les clusters de participants et calculer le rayon basé sur la distance maximale des clusters au centre
+        participant_clusters = cluster_nearby_participants(positions, distance_threshold_km=0.6)
         
-        print(f"Zone optimisée: centre=({center_lat:.4f},{center_lng:.4f}), rayon={adaptive_radius:.0f}m, dispersion_groupe={group_span_km:.1f}km")
+        # Calculer la position représentative de chaque cluster (centroïde)
+        cluster_centroids = []
+        for cluster in participant_clusters:
+            cluster_lats = [positions[idx]['location']['lat'] for idx in cluster]
+            cluster_lngs = [positions[idx]['location']['lng'] for idx in cluster]
+            cluster_center_lat = statistics.mean(cluster_lats)
+            cluster_center_lng = statistics.mean(cluster_lngs)
+            cluster_centroids.append((cluster_center_lat, cluster_center_lng))
+        
+        # Calculer la distance maximale entre le centre de recherche et les centroïdes des clusters
+        max_cluster_distance_km = 0
+        for cluster_lat, cluster_lng in cluster_centroids:
+            # Distance euclidienne approximative en km
+            lat_diff = (cluster_lat - center_lat) * 111
+            lng_diff = (cluster_lng - center_lng) * 111 * 0.64  # Correction longitude pour latitude française
+            distance_km = (lat_diff ** 2 + lng_diff ** 2) ** 0.5
+            max_cluster_distance_km = max(max_cluster_distance_km, distance_km)
+        
+        # Calculer le rayon adaptatif : 2/3 de la distance maximale d'un cluster au centre de recherche
+        adaptive_radius = (max_cluster_distance_km * 2 / 3) * 1000  # Conversion km -> mètres
+        
+        # Appliquer une limite minimale pour garder une recherche pratique
+        adaptive_radius = max(adaptive_radius, 500)   # Minimum 500m pour avoir des choix
+        
+        print(f"Zone optimisée: centre=({center_lat:.4f},{center_lng:.4f}), rayon={adaptive_radius:.0f}m")
+        print(f"Calcul du rayon: {len(participant_clusters)} clusters, distance max cluster->centre={max_cluster_distance_km:.1f}km, rayon=2/3*{max_cluster_distance_km:.1f}km={adaptive_radius:.0f}m")
         
         # 4. Rechercher dans la zone optimisée
         candidate_bars = search_bars_nearby(center_lat, center_lng, adaptive_radius, max_bars=50)
