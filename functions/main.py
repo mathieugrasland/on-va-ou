@@ -186,7 +186,9 @@ def find_optimal_bars(request):
         print(f"Calcul temps de trajet terminé: {len(travel_times_results)} bars avec temps en {travel_time:.2f}s")
         
         # Identifier les clusters de participants proches pour pondérer le scoring
-        participant_clusters = cluster_nearby_participants(positions, distance_threshold_km=0.6)
+        # Calculer une distance de clustering adaptative basée sur la dispersion du groupe
+        adaptive_cluster_distance = calculate_adaptive_cluster_distance(positions)
+        participant_clusters = cluster_nearby_participants(positions, distance_threshold_km=adaptive_cluster_distance)
         
         # Construire la liste des bars avec leurs métriques de temps de trajet pondérées
         bars_with_times = []
@@ -314,6 +316,54 @@ def find_optimal_bars(request):
         return jsonify({"error": "Erreur interne du serveur"}), 500, headers
 
 
+def calculate_adaptive_cluster_distance(positions):
+    """Calcule une distance de clustering adaptative basée sur la dispersion du groupe"""
+    try:
+        if len(positions) <= 2:
+            # Pour 2 personnes ou moins, distance de clustering plus petite
+            return 0.4  # 400m
+        
+        # Calculer toutes les distances entre participants
+        distances = []
+        for i in range(len(positions)):
+            for j in range(i + 1, len(positions)):
+                lat1, lng1 = positions[i]['location']['lat'], positions[i]['location']['lng']
+                lat2, lng2 = positions[j]['location']['lat'], positions[j]['location']['lng']
+                
+                # Distance euclidienne approximative en km
+                lat_diff = (lat2 - lat1) * 111
+                lng_diff = (lng2 - lng1) * 111 * 0.64  # Correction longitude pour latitude française
+                distance_km = (lat_diff ** 2 + lng_diff ** 2) ** 0.5
+                distances.append(distance_km)
+        
+        if not distances:
+            return 0.6  # Fallback par défaut
+        
+        # Calculer des métriques sur les distances
+        avg_distance = statistics.mean(distances)
+        min_distance = min(distances)
+        
+        # Distance de clustering adaptative : 
+        # - Si les gens sont très proches en moyenne (< 1km), clustering serré (min 300m, max 600m)
+        # - Si les gens sont dispersés (> 3km), clustering plus large (jusqu'à 1.5km)
+        if avg_distance < 1.0:
+            # Groupe compact : clustering serré basé sur la distance minimum
+            adaptive_distance = max(0.3, min(0.6, min_distance * 1.5))
+        elif avg_distance < 3.0:
+            # Groupe moyen : clustering proportionnel
+            adaptive_distance = max(0.4, min(1.0, avg_distance * 0.3))
+        else:
+            # Groupe très dispersé : clustering plus large
+            adaptive_distance = max(0.8, min(1.5, avg_distance * 0.25))
+        
+        print(f"Clustering adaptatif: distance moy={avg_distance:.1f}km, distance min={min_distance:.1f}km, seuil cluster={adaptive_distance:.1f}km")
+        return adaptive_distance
+        
+    except Exception as e:
+        print(f"Erreur calcul clustering adaptatif: {e}")
+        return 0.6  # Fallback vers la valeur par défaut
+
+
 def cluster_nearby_participants(positions, distance_threshold_km=0.6):
     """Regroupe les participants qui sont à moins de distance_threshold_km les uns des autres"""
     try:
@@ -349,7 +399,7 @@ def cluster_nearby_participants(positions, distance_threshold_km=0.6):
             
             clusters.append(cluster)
         
-        print(f"Clustering participants: {len(clusters)} groupes formés à partir de {len(positions)} participants")
+        print(f"Clustering participants: {len(clusters)} groupes formés à partir de {len(positions)} participants (seuil: {distance_threshold_km:.1f}km)")
         for i, cluster in enumerate(clusters):
             if len(cluster) > 1:
                 names = [positions[idx].get('name', f'Participant {idx}') for idx in cluster]
@@ -449,35 +499,26 @@ def search_bars_optimized_zone(positions):
         center_lat, center_lng = best_center_lat, best_center_lng
         print(f"Centre optimal trouvé: ({center_lat:.4f},{center_lng:.4f}) avec variance temps: {min_time_variance:.2f}")
         
-        # 3. Identifier les clusters de participants et calculer le rayon basé sur la distance maximale des clusters au centre
-        participant_clusters = cluster_nearby_participants(positions, distance_threshold_km=0.6)
-        
-        # Calculer la position représentative de chaque cluster (centroïde)
-        cluster_centroids = []
-        for cluster in participant_clusters:
-            cluster_lats = [positions[idx]['location']['lat'] for idx in cluster]
-            cluster_lngs = [positions[idx]['location']['lng'] for idx in cluster]
-            cluster_center_lat = statistics.mean(cluster_lats)
-            cluster_center_lng = statistics.mean(cluster_lngs)
-            cluster_centroids.append((cluster_center_lat, cluster_center_lng))
-        
-        # Calculer la distance maximale entre le centre de recherche et les centroïdes des clusters
-        max_cluster_distance_km = 0
-        for cluster_lat, cluster_lng in cluster_centroids:
+        # 3. Calculer le rayon basé sur la distance maximale de toutes les personnes au centre de recherche
+        max_person_distance_km = 0
+        for position in positions:
+            person_lat = position['location']['lat']
+            person_lng = position['location']['lng']
+            
             # Distance euclidienne approximative en km
-            lat_diff = (cluster_lat - center_lat) * 111
-            lng_diff = (cluster_lng - center_lng) * 111 * 0.64  # Correction longitude pour latitude française
+            lat_diff = (person_lat - center_lat) * 111
+            lng_diff = (person_lng - center_lng) * 111 * 0.64  # Correction longitude pour latitude française
             distance_km = (lat_diff ** 2 + lng_diff ** 2) ** 0.5
-            max_cluster_distance_km = max(max_cluster_distance_km, distance_km)
+            max_person_distance_km = max(max_person_distance_km, distance_km)
         
-        # Calculer le rayon adaptatif : 2/3 de la distance maximale d'un cluster au centre de recherche
-        adaptive_radius = (max_cluster_distance_km * 2 / 3) * 1000  # Conversion km -> mètres
+        # Calculer le rayon adaptatif : distance maximale d'une personne au centre de recherche
+        adaptive_radius = max_person_distance_km * 1000  # Conversion km -> mètres
         
         # Appliquer une limite minimale pour garder une recherche pratique
         adaptive_radius = max(adaptive_radius, 500)   # Minimum 500m pour avoir des choix
         
         print(f"Zone optimisée: centre=({center_lat:.4f},{center_lng:.4f}), rayon={adaptive_radius:.0f}m")
-        print(f"Calcul du rayon: {len(participant_clusters)} clusters, distance max cluster->centre={max_cluster_distance_km:.1f}km, rayon=2/3*{max_cluster_distance_km:.1f}km={adaptive_radius:.0f}m")
+        print(f"Calcul du rayon: distance max personne->centre={max_person_distance_km:.1f}km, rayon={adaptive_radius:.0f}m")
         
         # 4. Rechercher dans la zone optimisée avec retry automatique si nécessaire
         candidate_bars = search_bars_nearby(center_lat, center_lng, adaptive_radius, max_bars=50)

@@ -72,11 +72,11 @@ export class SecureMapManager {
             }
 
             console.log('Initialisation de la carte...');
-            // Position par défaut (Paris) avec un zoom légèrement dézooomé
+            // Position par défaut (Paris) avec un zoom plus dézoomé
             const defaultPosition = { lat: 48.8566, lng: 2.3522 };
 
             this.map = new google.maps.Map(mapElement, {
-                zoom: 12, // Zoom intermédiaire entre 11 et 12
+                zoom: 10, // Zoom plus dézoomé pour voir une zone plus large
                 center: defaultPosition,
                 mapTypeId: 'roadmap',
                 mapTypeControl: false,

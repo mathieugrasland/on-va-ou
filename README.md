@@ -13,58 +13,78 @@ Application web de géolocalisation sociale pour organiser des sorties entre ami
 
 ## Méthodologie de recherche
 
-L'algorithme de recherche de bars optimaux utilise une approche **entièrement basée sur l'équilibre des temps de trajet** pour garantir l'équité entre tous les participants :
+L'algorithme de recherche de bars optimaux utilise une approche **entièrement adaptative et équitable** pour garantir l'optimalité entre tous les participants :
 
-### 1. Sélection des participants
+### 1. Sélection et validation des participants
 - L'utilisateur choisit les amis qui participent à la sortie
 - Vérification que tous ont une adresse valide dans leur profil
 - Récupération des modes de transport préférés de chaque participant
+- Minimum requis : 2 participants avec adresses valides
 
-### 2. Calcul du point de rencontre optimal
+### 2. Calcul du centre de recherche optimal
 - **Géocodage** : Conversion des adresses en coordonnées GPS via l'API Geocoding
-- **Centroïde géographique** : Calcul du point central entre toutes les positions
-- **Zone de recherche étendue** : Rayon jusqu'à 2,5km pour maximiser les choix
+- **Optimisation du centre** : 
+  - Test de 9 points candidats dans une grille 3×3 autour du centroïde géographique
+  - Sélection du point minimisant la variance des temps de trajet estimés
+  - Prise en compte des modes de transport de chaque participant
 
-### 3. Recherche extensive des bars candidats
-- **API Google Places** : Recherche dans un rayon étendu (min. 2km) autour du centre
+### 3. Calcul du rayon de recherche adaptatif
+- **Rayon intelligent** : Distance maximale entre n'importe quel participant et le centre optimal
+- **Garantie d'inclusion** : Tous les participants sont dans la zone de recherche des bars
+- **Minimum de sécurité** : 500m minimum pour garantir des choix variés
+- **Pas de maximum** : Le rayon peut s'étendre selon la dispersion géographique du groupe
+
+### 4. Recherche extensive des bars candidats
+- **API Google Places** : Recherche autour du centre optimal avec le rayon adaptatif
+- **Retry automatique** : En cas d'absence de résultats, élargissement automatique (×1.5 puis ×2.5)
 - **Filtrage intelligent** : 
   - Exclusion des hôtels et établissements non-bars
-  - Focus sur les vrais bars/pubs/brasseries
-  - Pré-filtrage par note (≥3.0) si suffisamment de choix
-- **Optimisation candidats** : Limitation à 25 bars max (contrainte API Distance Matrix)
+  - Focus sur les vrais bars/pubs/brasseries/cafés
+  - Recherche multi-pages pour maximiser les candidats (jusqu'à 50 bars)
+- **Scoring d'équité géographique** : Pré-filtrage des 25 meilleurs candidats basé sur l'équilibre des distances
 
-### 4. Calcul optimisé des temps de trajet
+### 5. Clustering adaptatif des participants
+- **Distance de clustering intelligent** :
+  - **Groupe compact** (< 1km) : clusters serrés (300-600m)
+  - **Groupe moyen** (1-3km) : clusters proportionnels (400m-1km)
+  - **Groupe dispersé** (> 3km) : clusters larges (800m-1.5km)
+- **Optimisation du scoring** : Les participants proches sont groupés pour éviter la sur-pondération
+
+### 6. Calcul optimisé des temps de trajet
 - **Respect des limites API** : Maximum 25 origines × 25 destinations par requête
 - **Groupement par transport** : Regroupement des calculs par walking/driving/bicycling/transit
 - **Traitement en batch** : Appels API optimisés pour minimiser le nombre de requêtes
-- **Calcul de métriques** :
-  - Temps moyen par bar
-  - Écart entre temps min/max (time_spread)
-  - **Score d'équilibre** : `time_spread / avg_time` (plus bas = plus équitable)
+- **Métriques par cluster** :
+  - Temps moyen par cluster (pas par individu)
+  - Écart entre clusters min/max 
+  - **Score d'équilibre** : `écart_clusters / temps_moyen_clusters`
 
-### 5. Nouveau système de classement par équité
-- **Critère prioritaire** : **Score d'équilibre des temps** (croissant)
-  - Favorise les bars où tous arrivent dans des temps similaires
+### 7. Système de classement par équité des clusters
+- **Critère prioritaire** : **Score d'équilibre entre clusters** (croissant)
+  - Favorise les bars où tous les groupes arrivent dans des temps similaires
   - Filtre automatique des bars trop déséquilibrés (>75% du temps moyen)
-- **Critère secondaire** : **Temps de trajet moyen** (croissant)
+- **Critère secondaire** : **Temps de trajet moyen des clusters** (croissant)
   - À équilibre égal, privilégie les bars plus rapides d'accès
 - **Critère tertiaire** : **Note Google** (décroissant)
   - À temps égal, favorise les bars mieux notés
 
-### 6. Affichage des résultats optimisés
-- **Indicateurs visuels d'équilibre** :
-  - 🟢 Équilibré : Écart ≤25% du temps moyen
-  - 🟠 Acceptable : Écart 25-50% du temps moyen  
-  - 🔴 Déséquilibré : Écart >50% du temps moyen
+### 8. Affichage des résultats optimisés
+- **Marqueurs spéciaux** :
+  - ⚡ Bar le plus rapide (temps moyen minimal)
+  - ⚖️ Bar le plus équitable (écart minimal entre groupes)
+  - ⚡⚖️ Bar optimal (à la fois rapide ET équitable)
 - **Détails par participant** : Temps individuel avec mode de transport
+- **Informations de groupes** : Nombre de clusters formés
 - **Maximum de résultats** : Jusqu'à 25 bars (optimisé pour les limites API)
 
-### Optimisations techniques
-- **Performance** : Algorithme optimisé pour respecter les limites Google Maps API (25×25 max)
-- **Traitement intelligent** : Pré-filtrage des candidats par distance au centre et qualité
-- **Équité garantie** : Système de score d'équilibre pour éviter les temps de trajet déséquilibrés
-- **Batch processing** : Groupement optimal des appels API par mode de transport
-- **Interface responsive** : Indicateurs visuels d'équilibre et détails de temps par participant
+### Avantages de cette approche révolutionnaire
+
+1. **Équité garantie** : Personne n'est désavantagé par un temps de trajet excessif
+2. **Adaptation automatique** : S'ajuste à n'importe quelle configuration géographique
+3. **Intelligence géospatiale** : Clustering adaptatif selon la dispersion du groupe
+4. **Performance optimisée** : Respect des limites API avec retry automatique
+5. **Transparence** : Logs détaillés de toute la logique de calcul
+6. **Robustesse** : Fallbacks automatiques en cas d'erreur
 
 Cette approche révolutionnaire **privilégie l'équité entre participants** plutôt que la note absolue des bars, garantissant que personne ne soit désavantagé par un temps de trajet excessif.
 
