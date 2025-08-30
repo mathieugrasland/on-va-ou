@@ -20,14 +20,14 @@ export const INTERFACE_COLORS = {
 export const FRIEND_COLORS = [
     '#ad1457', // Rose bordeaux
     '#00695c', // Vert émeraude
-    '#b65b00ff', // Ambre doré
+    '#864300ff', // Ambre doré
     '#455a64', // Gris bleu
-    '#6a1b9a',  // Violet améthyste
-    '#2e7d32', // Vert forêt
-    '#d84315', // Rouge terre cuite moderne
-    '#7b1fa2', // Violet profond
-    '#ef6c00', // Orange brûlé
-    '#251c19ff', // Marron (cohérent avec l'interface)
+    '#511675ff',  // Violet améthyste
+    '#416e43ff', // Vert forêt
+    '#a53513ff', // Rouge terre cuite moderne
+    '#4c1464ff', // Violet profond
+    '#b35000ff', // Orange brûlé
+    '#503830ff', // Marron (cohérent avec l'interface)
 ];
 
 // Couleurs spéciales pour les statuts
