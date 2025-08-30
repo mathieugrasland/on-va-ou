@@ -176,7 +176,7 @@ def find_optimal_bars(request):
         
         # Les bars sont déjà optimisés et filtrés par la nouvelle fonction
         # Limitation finale à 25 bars maximum pour respecter l'API
-        final_candidate_bars = candidate_bars[:25]
+        final_candidate_bars = candidate_bars[:50]
         print(f"Bars finaux sélectionnés: {len(final_candidate_bars)} bars pour calcul des temps")
         
         # Calculer les temps de trajet pour les bars sélectionnés
@@ -679,7 +679,7 @@ def calculate_travel_times_batch(bars, positions):
         # Optimisation : limiter dès le début pour éviter trop de calculs
         # Adapter le nombre selon les positions pour respecter la limite API de 25x25
         # Limite réelle : 25 origines × 25 destinations maximum
-        max_bars_to_process = min(25, len(bars))  # Maximum 25 destinations
+        max_bars_to_process = min(50, len(bars))  # Maximum 25 destinations
         limited_bars = bars[:max_bars_to_process]
         print(f"Traitement de {len(limited_bars)} bars pour {len(positions)} positions (limite API: 25×25)")
         
