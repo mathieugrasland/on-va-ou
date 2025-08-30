@@ -458,36 +458,36 @@ export class BarFinder {
             balanceIndicator = '<span class="balance-poor">⚖️ Déséquilibré</span>';
         }
         
-        // Déterminer l'affichage du badge spécial (sans mentions top choice)
-        let specialBadge = '';
+        // Déterminer l'affichage des badges spéciaux
+        let badgeContainer = '';
         
-        // Gérer tous les types de bars spéciaux avec seulement les badges
-        if (bar.marker_emoji && bar.marker_type) {
-            let badgeClass = '';
-            let badgeText = '';
+        if (bar.marker_types && bar.marker_emojis) {
+            const badges = [];
             
-            switch (bar.marker_type) {
-                case 'fastest':
-                    badgeClass = 'special-badge fastest-badge';
-                    badgeText = `${bar.marker_emoji} Plus rapide`;
-                    break;
-                case 'most_balanced':
-                    badgeClass = 'special-badge balanced-badge';
-                    badgeText = `${bar.marker_emoji} Plus équitable`;
-                    break;
-                case 'fastest_and_balanced':
-                    badgeClass = 'special-badge combined-badge';
-                    badgeText = `${bar.marker_emoji} Plus équitable ET plus rapide`;
-                    break;
-            }
+            // Définir l'ordre de priorité des badges
+            const priorityOrder = ['most_optimized', 'most_balanced', 'fastest'];
+            const badgeConfigs = {
+                'most_optimized': { class: 'optimized-badge', text: 'Meilleur compromis' },
+                'most_balanced': { class: 'balanced-badge', text: 'Plus équitable' },
+                'fastest': { class: 'fastest-badge', text: 'Plus rapide' }
+            };
             
-            if (badgeClass) {
-                specialBadge = `<div class="${badgeClass}">${badgeText}</div>`;
+            // Vérifier chaque type dans l'ordre de priorité
+            priorityOrder.forEach(priorityType => {
+                const index = bar.marker_types.indexOf(priorityType);
+                if (index !== -1) {
+                    const config = badgeConfigs[priorityType];
+                    badges.push(`<div class="special-badge ${config.class}">${bar.marker_emojis[index]} ${config.text}</div>`);
+                }
+            });
+            
+            if (badges.length > 0) {
+                badgeContainer = `<div class="badge-container">${badges.join('')}</div>`;
             }
         }
         
         card.innerHTML = `
-            ${specialBadge}
+            ${badgeContainer}
             <div class="bar-name">${bar.name}</div>
             <div class="bar-address">${bar.address}</div>
             <div class="bar-info">

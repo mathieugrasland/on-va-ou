@@ -4,14 +4,53 @@ from firebase_admin import credentials, auth, firestore
 from flask import jsonify
 import os
 import requests
-import json
 import statistics
 import time
+from typing import List, Dict, Tuple, Optional
 
-# Cloud Functions pour "On va où ?" - Version optimisée
+# ===== CONSTANTES =====
 GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY', 'AIzaSyBUNmeroMLlCNzrpCi7-6VCGBGfJ4Eg4MQ')
 
-# Initialisation Firebase
+# Limites API et timeouts
+API_TIMEOUT = 15
+MAX_BARS_DEFAULT = 25
+MAX_API_ORIGINS = 5
+MAX_API_DESTINATIONS = 25
+MAX_SEARCH_PAGES = 2
+PAGE_TOKEN_DELAY = 2
+
+# Paramètres de géolocalisation
+KM_PER_DEGREE_LAT = 111
+KM_PER_DEGREE_LNG_FR = 69.1  # À la latitude française (~46°)
+MIN_SEARCH_RADIUS = 500
+DEFAULT_CLUSTER_DISTANCE = 0.6
+
+# Vitesses moyennes (km/h)
+TRANSPORT_SPEEDS = {
+    'driving': 25,
+    'bicycling': 15, 
+    'transit': 20,
+    'walking': 4
+}
+
+# Mapping modes de transport
+TRANSPORT_MODE_MAPPING = {
+    'car': 'driving',
+    'bicycle': 'bicycling',
+    'public_transport': 'transit',
+    'walking': 'walking'
+}
+
+# Headers CORS standard
+CORS_HEADERS = {'Access-Control-Allow-Origin': '*'}
+CORS_PREFLIGHT_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '3600'
+}
+
+# ===== INITIALISATION FIREBASE =====
 if not firebase_admin._apps:
     if os.getenv('GOOGLE_CLOUD_PROJECT') or os.getenv('GITHUB_ACTIONS'):
         try:
@@ -25,43 +64,86 @@ if not firebase_admin._apps:
 
 db = None if not firebase_admin._apps else firestore.client()
 
+# ===== UTILITAIRES =====
+
+def handle_cors_preflight(request):
+    """Gère les requêtes preflight CORS"""
+    if request.method == 'OPTIONS':
+        return ('', 204, CORS_PREFLIGHT_HEADERS)
+    return None
+
+def verify_auth_token(request) -> Optional[str]:
+    """Vérifie et retourne le token d'authentification"""
+    authorization = request.headers.get('Authorization')
+    if not authorization or not authorization.startswith('Bearer '):
+        return None
+    
+    id_token = authorization.split(' ')[1]
+    try:
+        auth.verify_id_token(id_token)
+        return id_token
+    except:
+        return None
+
+def calculate_distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Calcule la distance euclidienne approximative en km"""
+    lat_diff = (lat2 - lat1) * KM_PER_DEGREE_LAT
+    lng_diff = (lng2 - lng1) * KM_PER_DEGREE_LNG_FR
+    return (lat_diff ** 2 + lng_diff ** 2) ** 0.5
+
+def estimate_travel_time(distance_km: float, transport_mode: str) -> float:
+    """Estime le temps de trajet en minutes"""
+    speed = TRANSPORT_SPEEDS.get(transport_mode, TRANSPORT_SPEEDS['walking'])
+    return (distance_km / speed) * 60
+
+# ===== FONCTIONS PRINCIPALES =====
+
 @functions_framework.http
 def geocode_address(request):
     """Géocoder une adresse de manière sécurisée via Google Maps API"""
-    if request.method == 'OPTIONS':
-        headers = {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'POST',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-            'Access-Control-Max-Age': '3600'
-        }
-        return ('', 204, headers)
-
-    headers = {'Access-Control-Allow-Origin': '*'}
+    # Gestion CORS preflight
+    cors_response = handle_cors_preflight(request)
+    if cors_response:
+        return cors_response
 
     try:
-        # Vérification du token
-        authorization = request.headers.get('Authorization')
-        if not authorization or not authorization.startswith('Bearer '):
-            return jsonify({"error": "Token d'authentification manquant"}), 401, headers
-
-        id_token = authorization.split(' ')[1]
-        auth.verify_id_token(id_token)
+        # Vérification authentification
+        if not verify_auth_token(request):
+            return jsonify({"error": "Token d'authentification manquant ou invalide"}), 401, CORS_HEADERS
         
-        # Récupération de l'adresse
+        # Validation des données
         request_json = request.get_json(silent=True)
         if not request_json or 'address' not in request_json:
-            return jsonify({"error": "Adresse manquante"}), 400, headers
+            return jsonify({"error": "Adresse manquante"}), 400, CORS_HEADERS
         
         address = request_json['address'].strip()
         if not address:
-            return jsonify({"error": "Adresse vide"}), 400, headers
+            return jsonify({"error": "Adresse vide"}), 400, CORS_HEADERS
 
-        # Configuration des URLs
-        places_url = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
-        geocoding_url = "https://maps.googleapis.com/maps/api/geocode/json"
+        # Tentative avec Places API puis géocodage direct
+        result = geocode_with_places_api(address) or geocode_direct(address)
         
-        # Essai avec Places API
+        if result:
+            return jsonify({
+                "success": True,
+                "location": result['geometry']['location'],
+                "formatted_address": result['formatted_address']
+            }), 200, CORS_HEADERS
+        
+        return jsonify({"success": False, "error": "Adresse non trouvée"}), 404, CORS_HEADERS
+
+    except auth.InvalidIdTokenError:
+        return jsonify({"error": "Token invalide"}), 401, CORS_HEADERS
+    except requests.RequestException:
+        return jsonify({"error": "Service de géolocalisation temporairement indisponible"}), 503, CORS_HEADERS
+    except Exception as e:
+        print(f"Erreur geocode_address: {e}")
+        return jsonify({"error": "Erreur interne du serveur"}), 500, CORS_HEADERS
+
+def geocode_with_places_api(address: str) -> Optional[Dict]:
+    """Tentative de géocodage via Places API"""
+    try:
+        places_url = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
         places_params = {
             'input': address,
             'key': GOOGLE_MAPS_API_KEY,
@@ -70,302 +152,280 @@ def geocode_address(request):
             'components': 'country:fr'
         }
         
-        # Essayer d'abord l'API Places
-        places_response = requests.get(places_url, params=places_params, timeout=10)
-        places_response.raise_for_status()
-        places_data = places_response.json()
+        response = requests.get(places_url, params=places_params, timeout=API_TIMEOUT)
+        response.raise_for_status()
+        data = response.json()
         
-        if places_data['status'] == 'OK' and places_data['predictions']:
-            place_id = places_data['predictions'][0]['place_id']
-            
-            geocoding_params = {'place_id': place_id, 'key': GOOGLE_MAPS_API_KEY}
-            
-            response = requests.get(geocoding_url, params=geocoding_params, timeout=10)
-            response.raise_for_status()
-            geocoding_data = response.json()
-            
-            if geocoding_data['status'] == 'OK' and geocoding_data['results']:
-                result = geocoding_data['results'][0]
-                return jsonify({
-                    "success": True,
-                    "location": result['geometry']['location'],
-                    "formatted_address": result['formatted_address']
-                }), 200, headers
+        if data['status'] == 'OK' and data['predictions']:
+            place_id = data['predictions'][0]['place_id']
+            return geocode_by_place_id(place_id)
         
-        # Si Places ne trouve rien, essayer le géocodage direct
-        geocoding_params = {
+        return None
+    except Exception:
+        return None
+
+def geocode_by_place_id(place_id: str) -> Optional[Dict]:
+    """Géocode par Place ID"""
+    try:
+        geocoding_url = "https://maps.googleapis.com/maps/api/geocode/json"
+        params = {'place_id': place_id, 'key': GOOGLE_MAPS_API_KEY}
+        
+        response = requests.get(geocoding_url, params=params, timeout=API_TIMEOUT)
+        response.raise_for_status()
+        data = response.json()
+        
+        if data['status'] == 'OK' and data['results']:
+            return data['results'][0]
+        return None
+    except Exception:
+        return None
+
+def geocode_direct(address: str) -> Optional[Dict]:
+    """Géocodage direct par adresse"""
+    try:
+        geocoding_url = "https://maps.googleapis.com/maps/api/geocode/json"
+        params = {
             'address': address,
             'key': GOOGLE_MAPS_API_KEY,
             'region': 'fr'
         }
         
-        response = requests.get(geocoding_url, params=geocoding_params, timeout=10)
+        response = requests.get(geocoding_url, params=params, timeout=API_TIMEOUT)
         response.raise_for_status()
-        geocoding_data = response.json()
+        data = response.json()
         
-        if geocoding_data['status'] == 'OK' and geocoding_data['results']:
-            result = geocoding_data['results'][0]
-            return jsonify({
-                "success": True,
-                "location": result['geometry']['location'],
-                "formatted_address": result['formatted_address']
-            }), 200, headers
-        
-        return jsonify({"success": False, "error": "Adresse non trouvée"}), 404, headers
-
-    except auth.InvalidIdTokenError:
-        return jsonify({"error": "Token invalide"}), 401, headers
-    except requests.RequestException:
-        return jsonify({"error": "Service de géolocalisation temporairement indisponible"}), 503, headers
+        if data['status'] == 'OK' and data['results']:
+            return data['results'][0]
+        return None
     except Exception:
-        return jsonify({"error": "Erreur interne du serveur"}), 500, headers
+        return None
 
 
 @functions_framework.http
 def find_optimal_bars(request):
     """Trouve les bars optimaux en temps pour un groupe d'amis"""
-    # Headers CORS pour toutes les réponses
-    headers = {'Access-Control-Allow-Origin': '*'}
-    
-    # Gestion preflight OPTIONS
-    if request.method == 'OPTIONS':
-        headers.update({
-            'Access-Control-Allow-Methods': 'POST',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-            'Access-Control-Max-Age': '3600'
-        })
-        return ('', 204, headers)
+    # Gestion CORS preflight
+    cors_response = handle_cors_preflight(request)
+    if cors_response:
+        return cors_response
 
     try:
-        # Vérification du token
-        authorization = request.headers.get('Authorization')
-        if not authorization or not authorization.startswith('Bearer '):
-            return jsonify({"error": "Token d'authentification manquant"}), 401, headers
-
-        id_token = authorization.split(' ')[1]
+        # Vérification authentification
+        if not verify_auth_token(request):
+            return jsonify({"error": "Token d'authentification manquant ou invalide"}), 401, CORS_HEADERS
         
-        # Vérification du token Firebase
-        try:
-            decoded_token = auth.verify_id_token(id_token)
-        except Exception as e:
-            return jsonify({"error": "Token invalide"}), 401, headers
-        
-        # Récupération des données
+        # Validation des données
         request_json = request.get_json(silent=True)
-        
         if not request_json or 'positions' not in request_json:
-            return jsonify({"error": "Positions manquantes"}), 400, headers
+            return jsonify({"error": "Positions manquantes"}), 400, CORS_HEADERS
         
         positions = request_json['positions']
-        max_bars = request_json.get('max_bars', 25)  # Valeur par défaut cohérente avec les nouvelles limites API
+        max_bars = request_json.get('max_bars', MAX_BARS_DEFAULT)
         
         if len(positions) < 2:
-            return jsonify({"error": "Au moins 2 positions requises"}), 400, headers
+            return jsonify({"error": "Au moins 2 positions requises"}), 400, CORS_HEADERS
 
         start_time = time.time()
-        print(f"Début recherche bars pour {len(positions)} positions (rayon adaptatif)")
+        print(f"Recherche bars pour {len(positions)} positions")
 
-        # Calculer une zone de recherche optimisée basée sur la géométrie du groupe
-        search_start = time.time()
+        # Recherche des bars dans une zone optimisée
         candidate_bars, center_lat, center_lng = search_bars_optimized_zone(positions, max_bars)
-        search_time = time.time() - search_start
-        print(f"Recherche bars terminée: {len(candidate_bars)} bars trouvés en {search_time:.2f}s")
         
         if not candidate_bars:
-            return jsonify({"error": "Aucun bar trouvé dans la zone optimisée"}), 404, headers
+            return jsonify({"error": "Aucun bar trouvé dans la zone optimisée"}), 404, CORS_HEADERS
         
-        # Les bars sont déjà optimisés et filtrés par la nouvelle fonction
-        # Utiliser la valeur max_bars fournie par le frontend
-        final_candidate_bars = candidate_bars[:max_bars]
-        print(f"Bars finaux sélectionnés: {len(final_candidate_bars)} bars pour calcul des temps")
+        # Calcul des temps de trajet
+        travel_times_results = calculate_travel_times_batch(candidate_bars[:max_bars], positions, max_bars)
         
-        # Calculer les temps de trajet pour les bars sélectionnés
-        travel_start = time.time()
-        travel_times_results = calculate_travel_times_batch(final_candidate_bars, positions, max_bars)
-        travel_time = time.time() - travel_start
-        print(f"Calcul temps de trajet terminé: {len(travel_times_results)} bars avec temps en {travel_time:.2f}s")
+        if not travel_times_results:
+            return jsonify({"error": "Impossible de calculer les temps de trajet"}), 500, CORS_HEADERS
         
-        # Identifier les clusters de participants proches pour pondérer le scoring
-        # Calculer une distance de clustering adaptative basée sur la dispersion du groupe
+        # Clustering des participants proches
         adaptive_cluster_distance = calculate_adaptive_cluster_distance(positions)
-        participant_clusters = cluster_nearby_participants(positions, distance_threshold_km=adaptive_cluster_distance)
+        participant_clusters = cluster_nearby_participants(positions, adaptive_cluster_distance)
         
-        # Construire la liste des bars avec leurs métriques de temps de trajet pondérées
-        bars_with_times = []
-        for bar_idx, travel_times in travel_times_results.items():
-            bar = final_candidate_bars[bar_idx]
-            
-            # Calculer les temps de trajet consolidés par cluster
-            cluster_travel_times = []
-            for cluster in participant_clusters:
-                # Pour chaque cluster, prendre le temps moyen des participants du cluster
-                cluster_times = [travel_times[participant_idx] for participant_idx in cluster]
-                cluster_avg_time = statistics.mean(cluster_times)
-                cluster_travel_times.append(cluster_avg_time)
-            
-            # Calculer les métriques basées sur les clusters (pas les participants individuels)
-            avg_time = statistics.mean(cluster_travel_times)
-            max_time = max(cluster_travel_times)
-            min_time = min(cluster_travel_times)
-            time_spread = max_time - min_time  # Écart entre clusters, pas entre individus
-            
-            # Score d'équilibre basé sur les clusters
-            time_balance_score = time_spread / avg_time if avg_time > 0 else float('inf')
-            
-            # Garder aussi les temps individuels pour l'affichage
-            individual_avg_time = statistics.mean(travel_times)
-            individual_max_time = max(travel_times)
-            individual_min_time = min(travel_times)
-            
-            bars_with_times.append({
-                'name': bar['name'],
-                'address': bar.get('formatted_address', bar.get('vicinity', '')),
-                'location': bar['geometry']['location'],
-                'rating': bar.get('rating'),
-                'price_level': bar.get('price_level'),
-                'place_id': bar['place_id'],
-                'travel_times': travel_times,  # Temps individuels pour l'affichage
-                'cluster_travel_times': cluster_travel_times,  # Temps par cluster pour le scoring
-                'avg_travel_time': avg_time,  # Moyenne des clusters (pour le tri)
-                'max_travel_time': max_time,  # Max des clusters
-                'min_travel_time': min_time,  # Min des clusters
-                'time_spread': time_spread,  # Écart entre clusters
-                'time_balance_score': time_balance_score,  # Score basé sur clusters
-                'individual_avg_time': individual_avg_time,  # Pour info/affichage
-                'individual_max_time': individual_max_time,  # Pour info/affichage
-                'individual_min_time': individual_min_time   # Pour info/affichage
-            })
+        # Construction et scoring des bars
+        bars_with_times = build_bars_with_metrics(candidate_bars, travel_times_results, participant_clusters)
+        best_bars = score_and_rank_bars(bars_with_times, max_bars)
         
-        if not bars_with_times:
-            return jsonify({"error": "Impossible de calculer les temps de trajet"}), 500, headers
-        
-        # Nouveau système de scoring basé sur l'équilibre des temps de trajet
-        # 1. Filtrer les bars avec un déséquilibre trop important (> 75% du temps moyen)
-        balanced_bars = [bar for bar in bars_with_times if bar['time_balance_score'] <= 0.75]
-        
-        # Si pas assez de bars équilibrés, prendre les meilleurs même s'ils sont déséquilibrés
-        if len(balanced_bars) < max_bars:
-            balanced_bars = bars_with_times
-        
-        # 2. Nouveau tri : écart de temps (croissant) -> temps moyen (croissant) -> note (décroissant)
-        balanced_bars.sort(key=lambda x: (
-            x['time_balance_score'],       # Équilibre croissant (priorité 1) - plus équilibré = mieux
-            x['avg_travel_time'],          # Temps moyen croissant (priorité 2) - plus court = mieux
-            -x['rating'] if x['rating'] else -1  # Note décroissante (priorité 3) - meilleure note = mieux
-        ))
-        
-        # Retourner autant de bars que possible (jusqu'à 25 avec la limite API)
-        best_bars = balanced_bars[:min(max_bars, len(balanced_bars))]
-        
-        # Identifier les bars spéciaux pour l'affichage avec des emojis distinctifs
-        if len(best_bars) > 0:
-            # 1. Bar avec la plus petite moyenne de temps de trajet -> emoji éclair ⚡
-            min_avg_time_bar = min(best_bars, key=lambda x: x['avg_travel_time'])
-            
-            # 2. Bar avec le plus petit écart de trajet -> emoji balance ⚖️
-            min_spread_bar = min(best_bars, key=lambda x: x['time_balance_score'])
-            
-            # Initialiser tous les bars avec le type standard
-            for bar in best_bars:
-                bar['marker_types'] = []
-                bar['marker_emojis'] = []
-            
-            # Marquer le bar le plus rapide
-            min_avg_time_bar['marker_types'].append('fastest')
-            min_avg_time_bar['marker_emojis'].append('⚡')
-            
-            # Marquer le bar le plus équitable
-            min_spread_bar['marker_types'].append('most_balanced')
-            min_spread_bar['marker_emojis'].append('⚖️')
-            
-            # Finaliser les marqueurs pour chaque bar
-            for bar in best_bars:
-                if len(bar['marker_types']) == 0:
-                    # Bar standard
-                    bar['marker_emoji'] = '📍'
-                    bar['marker_type'] = 'standard'
-                elif len(bar['marker_types']) == 1:
-                    # Bar avec une seule spécialité
-                    bar['marker_emoji'] = bar['marker_emojis'][0]
-                    bar['marker_type'] = bar['marker_types'][0]
-                else:
-                    # Bar avec plusieurs spécialités (le plus rapide ET le plus équitable)
-                    bar['marker_emoji'] = ''.join(bar['marker_emojis'])  # Combine les emojis
-                    bar['marker_type'] = 'fastest_and_balanced'
-                
-                # Nettoyer les propriétés temporaires
-                del bar['marker_types']
-                del bar['marker_emojis']
+        # Ajout des marqueurs spéciaux
+        add_special_markers(best_bars)
         
         total_time = time.time() - start_time
-        print(f"Recherche complète terminée en {total_time:.2f}s - {len(best_bars)} bars retournés (scoring basé sur {len(participant_clusters)} clusters)")
+        print(f"Recherche terminée en {total_time:.2f}s - {len(best_bars)} bars retournés")
         
         return jsonify({
             "success": True,
             "bars": best_bars,
             "center_point": {"lat": center_lat, "lng": center_lng},
-            "participant_clusters": len(participant_clusters)  # Info pour debug
-        }), 200, headers
+            "participant_clusters": len(participant_clusters)
+        }), 200, CORS_HEADERS
 
-    except auth.InvalidIdTokenError as e:
-        return jsonify({"error": "Token invalide"}), 401, headers
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400, headers
     except Exception as e:
-        print(f"ERROR: Exception non gérée dans find_optimal_bars: {e}")
-        return jsonify({"error": "Erreur interne du serveur"}), 500, headers
+        print(f"Erreur find_optimal_bars: {e}")
+        return jsonify({"error": "Erreur interne du serveur"}), 500, CORS_HEADERS
+
+def build_bars_with_metrics(candidate_bars: List[Dict], travel_times_results: Dict, 
+                           participant_clusters: List[List[int]]) -> List[Dict]:
+    """Construit la liste des bars avec leurs métriques"""
+    bars_with_times = []
+    
+    for bar_idx, travel_times in travel_times_results.items():
+        bar = candidate_bars[bar_idx]
+        
+        # Calcul des temps par cluster
+        cluster_travel_times = []
+        for cluster in participant_clusters:
+            cluster_times = [travel_times[participant_idx] for participant_idx in cluster]
+            cluster_travel_times.append(statistics.mean(cluster_times))
+        
+        # Métriques basées sur les clusters
+        avg_time = statistics.mean(cluster_travel_times)
+        std_time = statistics.stdev(cluster_travel_times)
+        max_time = max(cluster_travel_times)
+        min_time = min(cluster_travel_times)
+        time_spread = max_time - min_time
+        time_balance_score = time_spread / avg_time if avg_time > 0 else float('inf')
+        optimization_score = std_time * avg_time
+        
+        # Métriques individuelles pour l'affichage
+        individual_avg = statistics.mean(travel_times)
+        individual_max = max(travel_times)
+        individual_min = min(travel_times)
+        
+        bars_with_times.append({
+            'name': bar['name'],
+            'address': bar.get('formatted_address', bar.get('vicinity', '')),
+            'location': bar['geometry']['location'],
+            'rating': bar.get('rating'),
+            'price_level': bar.get('price_level'),
+            'place_id': bar['place_id'],
+            'travel_times': travel_times,
+            'cluster_travel_times': cluster_travel_times,
+            'avg_travel_time': avg_time,
+            'max_travel_time': max_time,
+            'min_travel_time': min_time,
+            'time_spread': time_spread,
+            'time_balance_score': time_balance_score,
+            'optimization_score': optimization_score,
+            'individual_avg_time': individual_avg,
+            'individual_max_time': individual_max,
+            'individual_min_time': individual_min
+        })
+    
+    return bars_with_times
+
+def score_and_rank_bars(bars_with_times: List[Dict], max_bars: int) -> List[Dict]:
+    """Score et classe les bars par équilibre et qualité"""
+    # Filtrer les bars trop déséquilibrés
+    balanced_bars = [bar for bar in bars_with_times if bar['time_balance_score'] <= 0.75]
+    
+    # Si pas assez de bars équilibrés, prendre tous les bars
+    if len(balanced_bars) < max_bars:
+        balanced_bars = bars_with_times
+    
+    # Tri par équilibre, temps moyen, puis note
+    balanced_bars.sort(key=lambda x: (
+        x['time_balance_score'],
+        x['avg_travel_time'],
+        -x['rating'] if x['rating'] else -1
+    ))
+    
+    return balanced_bars[:max_bars]
+
+def add_special_markers(bars: List[Dict]) -> None:
+    """Ajoute des marqueurs spéciaux aux bars remarquables"""
+    if not bars:
+        return
+    
+    # Identifier les bars spéciaux
+    fastest_bar = min(bars, key=lambda x: x['avg_travel_time'])
+    most_balanced_bar = min(bars, key=lambda x: x['time_balance_score'])
+    most_optimized_bar = min(bars, key=lambda x: x['optimization_score'])
+    
+    # Initialiser tous les bars
+    for bar in bars:
+        bar['marker_types'] = []
+        bar['marker_emojis'] = []
+    
+    # Réorganiser les bars dans l'ordre d'affichage souhaité
+    bars.sort(key=lambda x: (
+        0 if x == most_optimized_bar else 1,
+        0 if x == most_balanced_bar else 1,
+        0 if x == fastest_bar else 1
+    ))
+    
+    # Marquer les bars spéciaux
+    if most_optimized_bar:
+        most_optimized_bar['marker_types'].append('most_optimized')
+        most_optimized_bar['marker_emojis'].append('🎯')
+    
+    if most_balanced_bar:
+        most_balanced_bar['marker_types'].append('most_balanced')
+        most_balanced_bar['marker_emojis'].append('⚖️')
+    
+    if fastest_bar:
+        fastest_bar['marker_types'].append('fastest')
+        fastest_bar['marker_emojis'].append('⚡')
+    
+    # Finaliser les marqueurs
+    for bar in bars:
+        if not bar['marker_types']:
+            bar['marker_emoji'] = '📍'
+            bar['marker_type'] = 'standard'
+        elif len(bar['marker_types']) == 1:
+            bar['marker_emoji'] = bar['marker_emojis'][0]
+            bar['marker_type'] = bar['marker_types'][0]
+        else:
+            bar['marker_emoji'] = ''.join(bar['marker_emojis'])
+            bar['marker_type'] = 'fastest_and_balanced'
+        
+        # Nettoyer les propriétés temporaires
+        del bar['marker_types']
+        del bar['marker_emojis']
 
 
-def calculate_adaptive_cluster_distance(positions):
+def calculate_adaptive_cluster_distance(positions: List[Dict]) -> float:
     """Calcule une distance de clustering adaptative basée sur la dispersion du groupe"""
     try:
         if len(positions) <= 2:
-            # Pour 2 personnes ou moins, distance de clustering plus petite
-            return 0.4  # 400m
+            return 0.4  # 400m pour 2 personnes ou moins
         
         # Calculer toutes les distances entre participants
         distances = []
         for i in range(len(positions)):
             for j in range(i + 1, len(positions)):
-                lat1, lng1 = positions[i]['location']['lat'], positions[i]['location']['lng']
-                lat2, lng2 = positions[j]['location']['lat'], positions[j]['location']['lng']
-                
-                # Distance euclidienne approximative en km
-                lat_diff = (lat2 - lat1) * 111
-                lng_diff = (lng2 - lng1) * 111 * 0.64  # Correction longitude pour latitude française
-                distance_km = (lat_diff ** 2 + lng_diff ** 2) ** 0.5
+                pos1 = positions[i]['location']
+                pos2 = positions[j]['location']
+                distance_km = calculate_distance_km(pos1['lat'], pos1['lng'], pos2['lat'], pos2['lng'])
                 distances.append(distance_km)
         
         if not distances:
-            return 0.6  # Fallback par défaut
+            return DEFAULT_CLUSTER_DISTANCE
         
-        # Calculer des métriques sur les distances
         avg_distance = statistics.mean(distances)
         min_distance = min(distances)
         
-        # Distance de clustering adaptative : 
-        # - Si les gens sont très proches en moyenne (< 1km), clustering serré (min 300m, max 600m)
-        # - Si les gens sont dispersés (> 3km), clustering plus large (jusqu'à 1.5km)
+        # Distance de clustering adaptative
         if avg_distance < 1.0:
-            # Groupe compact : clustering serré basé sur la distance minimum
+            # Groupe compact
             adaptive_distance = max(0.3, min(0.6, min_distance * 1.5))
         elif avg_distance < 3.0:
-            # Groupe moyen : clustering proportionnel
+            # Groupe moyen
             adaptive_distance = max(0.4, min(1.0, avg_distance * 0.3))
         else:
-            # Groupe très dispersé : clustering plus large
+            # Groupe dispersé
             adaptive_distance = max(0.8, min(1.5, avg_distance * 0.25))
         
-        print(f"Clustering adaptatif: distance moy={avg_distance:.1f}km, distance min={min_distance:.1f}km, seuil cluster={adaptive_distance:.1f}km")
+        print(f"Clustering adaptatif: distance moy={avg_distance:.1f}km, seuil={adaptive_distance:.1f}km")
         return adaptive_distance
         
     except Exception as e:
-        print(f"Erreur calcul clustering adaptatif: {e}")
-        return 0.6  # Fallback vers la valeur par défaut
+        print(f"Erreur calcul clustering: {e}")
+        return DEFAULT_CLUSTER_DISTANCE
 
-
-def cluster_nearby_participants(positions, distance_threshold_km=0.6):
-    """Regroupe les participants qui sont à moins de distance_threshold_km les uns des autres"""
+def cluster_nearby_participants(positions: List[Dict], distance_threshold_km: float = DEFAULT_CLUSTER_DISTANCE) -> List[List[int]]:
+    """Regroupe les participants proches géographiquement"""
     try:
         clusters = []
         assigned = [False] * len(positions)
@@ -374,24 +434,21 @@ def cluster_nearby_participants(positions, distance_threshold_km=0.6):
             if assigned[i]:
                 continue
                 
-            # Créer un nouveau cluster avec cette position
+            # Créer un nouveau cluster
             cluster = [i]
             assigned[i] = True
+            pos_location = pos['location']
             
-            # Chercher toutes les positions à moins de 600m de celle-ci
-            lat1, lng1 = pos['location']['lat'], pos['location']['lng']
-            
+            # Chercher les positions proches
             for j, other_pos in enumerate(positions):
                 if assigned[j] or i == j:
                     continue
                     
-                lat2, lng2 = other_pos['location']['lat'], other_pos['location']['lng']
-                
-                # Calcul distance approximative en km (formule euclidienne simple)
-                # 1 degré ≈ 111 km à nos latitudes
-                lat_diff = (lat2 - lat1) * 111
-                lng_diff = (lng2 - lng1) * 111 * 0.64  # Correction longitude pour latitude française ~46°
-                distance_km = (lat_diff ** 2 + lng_diff ** 2) ** 0.5
+                other_location = other_pos['location']
+                distance_km = calculate_distance_km(
+                    pos_location['lat'], pos_location['lng'],
+                    other_location['lat'], other_location['lng']
+                )
                 
                 if distance_km <= distance_threshold_km:
                     cluster.append(j)
@@ -399,261 +456,193 @@ def cluster_nearby_participants(positions, distance_threshold_km=0.6):
             
             clusters.append(cluster)
         
-        print(f"Clustering participants: {len(clusters)} groupes formés à partir de {len(positions)} participants (seuil: {distance_threshold_km:.1f}km)")
-        for i, cluster in enumerate(clusters):
-            if len(cluster) > 1:
-                names = [positions[idx].get('name', f'Participant {idx}') for idx in cluster]
-                print(f"  Groupe {i+1}: {len(cluster)} participants proches - {', '.join(names)}")
-        
+        print(f"Clustering: {len(clusters)} groupes formés à partir de {len(positions)} participants")
         return clusters
         
     except Exception as e:
         print(f"Erreur clustering: {e}")
-        # Fallback: chaque participant est son propre cluster
         return [[i] for i in range(len(positions))]
 
 
-def search_bars_optimized_zone(positions, max_bars=25):
+def search_bars_optimized_zone(positions: List[Dict], max_bars: int = MAX_BARS_DEFAULT) -> Tuple[List[Dict], float, float]:
     """Recherche des bars dans une zone optimisée basée sur la géométrie du groupe"""
     try:
-        # 1. Analyser la dispersion géographique du groupe
+        # Calculer les coordonnées de base
         lats = [pos['location']['lat'] for pos in positions]
         lngs = [pos['location']['lng'] for pos in positions]
         
-        # Calculer les limites géographiques du groupe
-        min_lat, max_lat = min(lats), max(lats)
-        min_lng, max_lng = min(lngs), max(lngs)
+        # Trouver le centre optimal pour minimiser les temps de trajet
+        center_lat, center_lng = find_optimal_center(positions, lats, lngs)
         
-        # Calculer la dispersion du groupe (distance max entre participants)
-        max_distance = 0
-        for i in range(len(positions)):
-            for j in range(i + 1, len(positions)):
-                lat1, lng1 = positions[i]['location']['lat'], positions[i]['location']['lng']
-                lat2, lng2 = positions[j]['location']['lat'], positions[j]['location']['lng']
-                # Distance euclidienne approximative (suffisante pour la comparaison)
-                distance = ((lat2 - lat1) ** 2 + (lng2 - lng1) ** 2) ** 0.5
-                max_distance = max(max_distance, distance)
-        
-        # 2. Calculer le point central optimal pour minimiser les temps de trajet
-        # Au lieu du geometric median basé sur les distances euclidiennes,
-        # on va essayer plusieurs points candidats et choisir celui qui minimise
-        # la variance des temps de trajet estimés
-        
-        # Point de départ : centre géométrique simple
-        center_lat = statistics.mean(lats)
-        center_lng = statistics.mean(lngs)
-        
-        # Créer une grille de points candidats autour du centre géométrique
-        # pour trouver le meilleur point de recherche
-        best_center_lat, best_center_lng = center_lat, center_lng
-        min_time_variance = float('inf')
-        
-        # Taille de la grille de recherche basée sur la dispersion du groupe
-        search_grid_size = max(max_distance * 50, 0.002)  # Environ 200m en degrés
-        
-        print(f"Recherche du centre optimal dans une grille de {search_grid_size:.4f}° autour du centre géométrique")
-        
-        # Tester 9 points dans une grille 3x3 autour du centre
-        test_centers = []
-        for lat_offset in [-search_grid_size, 0, search_grid_size]:
-            for lng_offset in [-search_grid_size, 0, search_grid_size]:
-                test_lat = center_lat + lat_offset
-                test_lng = center_lng + lng_offset
-                test_centers.append((test_lat, test_lng))
-        
-        for test_lat, test_lng in test_centers:
-            # Estimer la variance des temps de trajet pour ce point
-            estimated_times = []
-            for pos in positions:
-                participant_lat = pos['location']['lat']
-                participant_lng = pos['location']['lng']
-                
-                # Distance euclidienne approximative en km
-                lat_diff = (test_lat - participant_lat) * 111
-                lng_diff = (test_lng - participant_lng) * 111 * 0.64
-                distance_km = (lat_diff ** 2 + lng_diff ** 2) ** 0.5
-                
-                # Estimation grossière du temps de trajet (vitesse moyenne 4 km/h à pied)
-                transport_mode = pos.get('transportMode', 'walking')
-                if transport_mode == 'car':
-                    speed_kmh = 25  # Vitesse urbaine avec embouteillages
-                elif transport_mode == 'bicycle':
-                    speed_kmh = 15  # Vitesse vélo urbain
-                elif transport_mode == 'public_transport':
-                    speed_kmh = 20  # Vitesse transports en commun avec attentes
-                else:  # walking
-                    speed_kmh = 4   # Vitesse piéton
-                
-                estimated_time = (distance_km / speed_kmh) * 60  # Conversion en minutes
-                estimated_times.append(estimated_time)
-            
-            # Calculer la variance des temps estimés
-            if len(estimated_times) > 1:
-                time_variance = statistics.variance(estimated_times)
-                
-                # Si cette variance est plus faible, c'est un meilleur centre
-                if time_variance < min_time_variance:
-                    min_time_variance = time_variance
-                    best_center_lat, best_center_lng = test_lat, test_lng
-        
-        center_lat, center_lng = best_center_lat, best_center_lng
-        print(f"Centre optimal trouvé: ({center_lat:.4f},{center_lng:.4f}) avec variance temps: {min_time_variance:.2f}")
-        
-        # 3. Calculer le rayon basé sur la distance maximale de toutes les personnes au centre de recherche
-        max_person_distance_km = 0
-        for position in positions:
-            person_lat = position['location']['lat']
-            person_lng = position['location']['lng']
-            
-            # Distance euclidienne approximative en km
-            lat_diff = (person_lat - center_lat) * 111
-            lng_diff = (person_lng - center_lng) * 111 * 0.64  # Correction longitude pour latitude française
-            distance_km = (lat_diff ** 2 + lng_diff ** 2) ** 0.5
-            max_person_distance_km = max(max_person_distance_km, distance_km)
-        
-        # Calculer le rayon adaptatif : distance maximale d'une personne au centre de recherche
-        adaptive_radius = max_person_distance_km * 1000  # Conversion km -> mètres
-        
-        # Appliquer une limite minimale pour garder une recherche pratique
-        adaptive_radius = max(adaptive_radius, 500)   # Minimum 500m pour avoir des choix
+        # Calculer le rayon adaptatif
+        adaptive_radius = calculate_adaptive_radius(positions, center_lat, center_lng)
         
         print(f"Zone optimisée: centre=({center_lat:.4f},{center_lng:.4f}), rayon={adaptive_radius:.0f}m")
-        print(f"Calcul du rayon: distance max personne->centre={max_person_distance_km:.1f}km, rayon={adaptive_radius:.0f}m")
         
-        # 4. Rechercher dans la zone optimisée avec retry automatique si nécessaire
-        candidate_bars = search_bars_nearby(center_lat, center_lng, adaptive_radius, max_bars=max_bars)
+        # Rechercher avec retry automatique
+        candidate_bars = search_bars_with_retry(center_lat, center_lng, adaptive_radius, max_bars)
         
-        # Si aucun bar trouvé, essayer avec un rayon élargi (x1.5 puis x2.5)
-        retry_count = 0
-        while len(candidate_bars) == 0 and retry_count < 2:
-            retry_count += 1
-            expanded_radius = adaptive_radius * (1.5 if retry_count == 1 else 2.5)
-            print(f"Aucun bar trouvé, tentative {retry_count}/2 avec rayon élargi: {expanded_radius:.0f}m")
-            candidate_bars = search_bars_nearby(center_lat, center_lng, expanded_radius, max_bars=max_bars)
-        
-        if len(candidate_bars) == 0:
-            print(f"Aucun bar trouvé après {retry_count + 1} tentatives")
-        else:
-            print(f"Bars trouvés après {retry_count + 1} tentative(s): {len(candidate_bars)} bars")
-        
-        # 5. Filtrage équilibré basé sur l'équité géographique ET la qualité
-        if len(candidate_bars) > max_bars:  # Si trop de candidats, filtrer plus intelligemment
-            # Calculer pour chaque bar un score d'équité composite
-            scored_bars = []
-            for bar in candidate_bars:
-                bar_lat = bar['geometry']['location']['lat']
-                bar_lng = bar['geometry']['location']['lng']
-                
-                # 1. Calculer les distances approximatives à tous les participants
-                distances_to_participants = []
-                for pos in positions:
-                    participant_lat = pos['location']['lat']
-                    participant_lng = pos['location']['lng']
-                    
-                    # Distance euclidienne en km (approximative)
-                    lat_diff = (bar_lat - participant_lat) * 111
-                    lng_diff = (bar_lng - participant_lng) * 111 * 0.64
-                    distance_km = (lat_diff ** 2 + lng_diff ** 2) ** 0.5
-                    distances_to_participants.append(distance_km)
-                
-                # 2. Calculer des métriques d'équité
-                avg_distance = statistics.mean(distances_to_participants)
-                max_distance = max(distances_to_participants)
-                min_distance = min(distances_to_participants)
-                distance_spread = max_distance - min_distance
-                
-                # Score d'équité géographique (plus bas = plus équitable)
-                equity_score = distance_spread / avg_distance if avg_distance > 0 else float('inf')
-                
-                # 3. Prendre en compte la qualité du bar
-                rating = bar.get('rating', 3.0)  # Default rating si pas de note
-                quality_bonus = (rating - 3.0) * 0.1  # Bonus/malus basé sur la note
-                
-                # 4. Score composite (équité + qualité)
-                # Plus le score est bas, mieux c'est
-                composite_score = equity_score - quality_bonus + avg_distance * 0.1
-                
-                bar['_equity_score'] = equity_score
-                bar['_avg_distance'] = avg_distance
-                bar['_max_distance'] = max_distance
-                bar['_composite_score'] = composite_score
-                scored_bars.append(bar)
-            
-            # Trier par score composite (équité + distance + qualité)
-            scored_bars.sort(key=lambda x: x['_composite_score'])
-            candidate_bars = scored_bars[:max_bars]  # Utiliser la valeur du frontend
-            
-            print(f"Filtrage équilibré: gardé {len(candidate_bars)} bars les plus équitables (scores 0.{candidate_bars[0]['_composite_score']:.2f} à {candidate_bars[-1]['_composite_score']:.2f})")
+        # Filtrage intelligent si trop de candidats
+        if len(candidate_bars) > max_bars:
+            candidate_bars = filter_bars_by_equity(candidate_bars, positions, max_bars)
         
         return candidate_bars, center_lat, center_lng
         
     except Exception as e:
         print(f"Erreur recherche optimisée: {e}")
-        # Fallback vers l'ancienne méthode avec un rayon par défaut
-        center_lat = statistics.mean([pos['location']['lat'] for pos in positions])
-        center_lng = statistics.mean([pos['location']['lng'] for pos in positions])
-        bars = search_bars_nearby(center_lat, center_lng, 2000, max_bars=max_bars)  # 2km par défaut en cas d'erreur
+        # Fallback vers l'ancienne méthode
+        center_lat = statistics.mean(lats)
+        center_lng = statistics.mean(lngs)
+        bars = search_bars_nearby(center_lat, center_lng, 2000, max_bars)
         return bars, center_lat, center_lng
 
+def find_optimal_center(positions: List[Dict], lats: List[float], lngs: List[float]) -> Tuple[float, float]:
+    """Trouve le centre optimal pour minimiser la variance des temps de trajet"""
+    center_lat = statistics.mean(lats)
+    center_lng = statistics.mean(lngs)
+    
+    # Calculer la dispersion pour déterminer la taille de la grille de recherche
+    max_distance = 0
+    for i in range(len(positions)):
+        for j in range(i + 1, len(positions)):
+            pos1 = positions[i]['location']
+            pos2 = positions[j]['location']
+            distance = ((pos2['lat'] - pos1['lat']) ** 2 + (pos2['lng'] - pos1['lng']) ** 2) ** 0.5
+            max_distance = max(max_distance, distance)
+    
+    search_grid_size = max(max_distance * 50, 0.002)  # ~200m en degrés
+    best_center_lat, best_center_lng = center_lat, center_lng
+    min_time_variance = float('inf')
+    
+    # Tester une grille 3x3 autour du centre géométrique
+    for lat_offset in [-search_grid_size, 0, search_grid_size]:
+        for lng_offset in [-search_grid_size, 0, search_grid_size]:
+            test_lat = center_lat + lat_offset
+            test_lng = center_lng + lng_offset
+            
+            # Calculer la variance des temps estimés pour ce point
+            estimated_times = []
+            for pos in positions:
+                participant_lat = pos['location']['lat']
+                participant_lng = pos['location']['lng']
+                distance_km = calculate_distance_km(test_lat, test_lng, participant_lat, participant_lng)
+                
+                transport_mode = TRANSPORT_MODE_MAPPING.get(pos.get('transportMode', 'walking'), 'walking')
+                estimated_time = estimate_travel_time(distance_km, transport_mode)
+                estimated_times.append(estimated_time)
+            
+            if len(estimated_times) > 1:
+                time_variance = statistics.variance(estimated_times)
+                if time_variance < min_time_variance:
+                    min_time_variance = time_variance
+                    best_center_lat, best_center_lng = test_lat, test_lng
+    
+    print(f"Centre optimal: variance temps {min_time_variance:.2f}")
+    return best_center_lat, best_center_lng
 
-def search_bars_nearby(lat, lng, radius, max_bars=25):
-    """Recherche les bars autour d'un point avec possibilité de récupérer plus de résultats"""
+def calculate_adaptive_radius(positions: List[Dict], center_lat: float, center_lng: float) -> float:
+    """Calcule le rayon adaptatif basé sur la distance maximale au centre"""
+    max_distance_km = 0
+    for position in positions:
+        pos_lat = position['location']['lat']
+        pos_lng = position['location']['lng']
+        distance_km = calculate_distance_km(center_lat, center_lng, pos_lat, pos_lng)
+        max_distance_km = max(max_distance_km, distance_km)
+    
+    # Convertir en mètres avec minimum pratique
+    adaptive_radius = max(max_distance_km * 1000, MIN_SEARCH_RADIUS)
+    print(f"Rayon adaptatif: {adaptive_radius:.0f}m (distance max au centre: {max_distance_km:.1f}km)")
+    return adaptive_radius
+
+def search_bars_with_retry(lat: float, lng: float, radius: float, max_bars: int) -> List[Dict]:
+    """Recherche des bars avec retry automatique si aucun résultat"""
+    candidate_bars = search_bars_nearby(lat, lng, radius, max_bars)
+    
+    retry_count = 0
+    while len(candidate_bars) == 0 and retry_count < 2:
+        retry_count += 1
+        expanded_radius = radius * (1.5 if retry_count == 1 else 2.5)
+        print(f"Retry {retry_count}/2 avec rayon élargi: {expanded_radius:.0f}m")
+        candidate_bars = search_bars_nearby(lat, lng, expanded_radius, max_bars)
+    
+    print(f"Bars trouvés après {retry_count + 1} tentative(s): {len(candidate_bars)}")
+    return candidate_bars
+
+def filter_bars_by_equity(bars: List[Dict], positions: List[Dict], max_bars: int) -> List[Dict]:
+    """Filtre les bars par équité géographique et qualité"""
+    scored_bars = []
+    
+    for bar in bars:
+        bar_lat = bar['geometry']['location']['lat']
+        bar_lng = bar['geometry']['location']['lng']
+        
+        # Calculer les distances à tous les participants
+        distances = []
+        for pos in positions:
+            participant_lat = pos['location']['lat']
+            participant_lng = pos['location']['lng']
+            distance_km = calculate_distance_km(bar_lat, bar_lng, participant_lat, participant_lng)
+            distances.append(distance_km)
+        
+        # Métriques d'équité
+        avg_distance = statistics.mean(distances)
+        max_distance = max(distances)
+        min_distance = min(distances)
+        distance_spread = max_distance - min_distance
+        
+        # Score d'équité géographique
+        equity_score = distance_spread / avg_distance if avg_distance > 0 else float('inf')
+        
+        # Bonus qualité
+        rating = bar.get('rating', 3.0)
+        quality_bonus = (rating - 3.0) * 0.1
+        
+        # Score composite
+        composite_score = equity_score - quality_bonus + avg_distance * 0.1
+        
+        bar['_composite_score'] = composite_score
+        scored_bars.append(bar)
+    
+    # Trier par score composite
+    scored_bars.sort(key=lambda x: x['_composite_score'])
+    filtered_bars = scored_bars[:max_bars]
+    
+    print(f"Filtrage équilibré: gardé {len(filtered_bars)} bars")
+    return filtered_bars
+
+
+def search_bars_nearby(lat: float, lng: float, radius: float, max_bars: int = MAX_BARS_DEFAULT) -> List[Dict]:
+    """Recherche les bars autour d'un point avec filtrage intelligent"""
     try:
         url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
         params = {
             'location': f"{lat},{lng}",
-            'radius': radius,
+            'radius': int(radius),
             'type': 'bar',
-            'keyword': 'bar pub cocktail bière',  # Mots-clés pour cibler les vrais bars
+            'keyword': 'bar pub cocktail bière',
             'key': GOOGLE_MAPS_API_KEY,
             'language': 'fr'
         }
         
         all_bars = []
         next_page_token = None
-        max_pages = 2  # Réduire à 2 pages pour optimiser le temps
         page_count = 0
         
-        # Récupérer plusieurs pages de résultats pour avoir plus de bars candidats
-        while len(all_bars) < max_bars and page_count < max_pages:
+        # Récupérer jusqu'à MAX_SEARCH_PAGES pages
+        while len(all_bars) < max_bars and page_count < MAX_SEARCH_PAGES:
             if next_page_token:
                 params['pagetoken'] = next_page_token
-                # Attendre le minimum requis par l'API (2s) mais pas plus
-                time.sleep(2)
+                time.sleep(PAGE_TOKEN_DELAY)  # Attente requise par l'API
             
-            response = requests.get(url, params=params, timeout=12)  # Timeout réduit
+            response = requests.get(url, params=params, timeout=API_TIMEOUT)
             response.raise_for_status()
             data = response.json()
         
             if data['status'] == 'OK':
-                # Filtrer pour exclure les hôtels et autres établissements
-                page_bars = []
-                for place in data['results']:
-                    place_types = place.get('types', [])
-                    place_name = place.get('name', '').lower()
-                    
-                    # Exclure si c'est un hôtel ou contient des mots-clés d'hôtel
-                    is_hotel = ('lodging' in place_types or 
-                               'hotel' in place_name or 
-                               'hôtel' in place_name or
-                               'auberge' in place_name or
-                               'resort' in place_name)
-                    
-                    # Inclure seulement si c'est vraiment un bar
-                    is_real_bar = ('bar' in place_types or 
-                                  'night_club' in place_types or
-                                  'bar' in place_name or 
-                                  'pub' in place_name or
-                                  'café' in place_name or
-                                  'brasserie' in place_name)
-                    
-                    if is_real_bar and not is_hotel:
-                        page_bars.append(place)
-                
-                # Ajouter les bars de cette page
+                # Filtrer pour garder seulement les vrais bars
+                page_bars = filter_real_bars(data['results'])
                 all_bars.extend(page_bars[:max_bars - len(all_bars)])
                 
-                # Vérifier s'il y a une page suivante
                 next_page_token = data.get('next_page_token')
                 if not next_page_token:
                     break
@@ -669,147 +658,182 @@ def search_bars_nearby(lat, lng, radius, max_bars=25):
         print(f"Erreur recherche bars: {e}")
         return []
 
+def filter_real_bars(places: List[Dict]) -> List[Dict]:
+    """Filtre pour garder seulement les vrais bars en excluant les hôtels"""
+    filtered_bars = []
+    
+    for place in places:
+        place_types = place.get('types', [])
+        place_name = place.get('name', '').lower()
+        
+        # Exclure les hôtels
+        is_hotel = ('lodging' in place_types or 
+                   any(keyword in place_name for keyword in ['hotel', 'hôtel', 'auberge', 'resort']))
+        
+        # Inclure seulement les vrais bars
+        is_real_bar = ('bar' in place_types or 
+                      'night_club' in place_types or
+                      any(keyword in place_name for keyword in ['bar', 'pub', 'café', 'brasserie']))
+        
+        if is_real_bar and not is_hotel:
+            filtered_bars.append(place)
+    
+    return filtered_bars
 
-def calculate_travel_times_batch(bars, positions, max_bars=25):
+
+def calculate_travel_times_batch(bars: List[Dict], positions: List[Dict], max_bars: int = MAX_BARS_DEFAULT) -> Dict[int, List[float]]:
     """Calcule les temps de trajet pour tous les bars et positions en groupant par mode de transport"""
     try:
         if not bars or not positions:
             return {}
         
-        # Optimisation : limiter dès le début pour éviter trop de calculs
-        # Adapter le nombre selon les positions pour respecter la limite API de 5×25
-        # Limite réelle : 5 origines × 25 destinations maximum
-        max_bars_to_process = min(max_bars, len(bars))  # Utiliser la valeur du frontend
+        # Limiter le nombre de bars pour respecter les limites API
+        max_bars_to_process = min(max_bars, len(bars))
         limited_bars = bars[:max_bars_to_process]
-        print(f"Traitement de {len(limited_bars)} bars pour {len(positions)} positions (limite API: 5×25)")
+        print(f"Traitement de {len(limited_bars)} bars pour {len(positions)} positions")
         
         # Grouper les positions par mode de transport
-        transport_groups = {}
-        for idx, position in enumerate(positions):
-            transport_mode = position.get('transportMode', 'walking')
-            
-            # Mapper les modes de transport
-            mode_mapping = {
-                'car': 'driving',
-                'bicycle': 'bicycling', 
-                'public_transport': 'transit',
-                'walking': 'walking'
-            }
-            google_mode = mode_mapping.get(transport_mode, 'walking')
-            
-            if google_mode not in transport_groups:
-                transport_groups[google_mode] = []
-            
-            transport_groups[google_mode].append({
-                'index': idx,
-                'position': position,
-                'origin': f"{position['location']['lat']},{position['location']['lng']}"
-            })
+        transport_groups = group_positions_by_transport(positions)
         
-        # Préparer toutes les destinations (bars)
-        destinations = []
-        for bar in limited_bars:
-            bar_location = bar['geometry']['location']
-            destination = f"{bar_location['lat']},{bar_location['lng']}"
-            destinations.append(destination)
+        # Préparer les destinations (bars)
+        destinations = prepare_destinations(limited_bars)
         
-        # Faire une requête par groupe de transport avec gestion des limites API
-        all_travel_times = [None] * len(positions)  # Index par position originale
-        
-        for transport_mode, group_positions in transport_groups.items():
-            # Traiter les requêtes par batch pour respecter les limites API (25×50 max)
-            origins = [pos_info['origin'] for pos_info in group_positions]
-            
-            # Vérifier que nous ne dépassons pas 5 origines
-            if len(origins) > 5:
-                print(f"Trop d'origines ({len(origins)}) pour le mode {transport_mode}, limitation à 5")
-                origins = origins[:5]
-                group_positions = group_positions[:5]
-            
-            # Calculer le nombre max de destinations par requête (25 max pour l'API Distance Matrix)
-            max_destinations_per_request = min(25, len(destinations))
-            
-            print(f"Mode {transport_mode}: {len(origins)} origines, max {max_destinations_per_request} destinations par requête")
-            
-            # Découper les destinations par chunks de 25 maximum
-            request_count = 0
-            for dest_start in range(0, len(destinations), max_destinations_per_request):
-                dest_end = min(dest_start + max_destinations_per_request, len(destinations))
-                chunk_destinations = destinations[dest_start:dest_end]
-                request_count += 1
-                
-                # Vérification de sécurité pour 5×25
-                if len(origins) > 5 or len(chunk_destinations) > 25:
-                    print(f"ERREUR: Dépassement limites API - {len(origins)} origines × {len(chunk_destinations)} destinations")
-                    continue
-                
-                print(f"Requête {request_count} pour {transport_mode}: {len(origins)} origines × {len(chunk_destinations)} destinations")
-                
-                # Appel à l'API Distance Matrix pour ce chunk
-                url = "https://maps.googleapis.com/maps/api/distancematrix/json"
-                params = {
-                    'origins': '|'.join(origins),
-                    'destinations': '|'.join(chunk_destinations),
-                    'mode': transport_mode,
-                    'language': 'fr',
-                    'key': GOOGLE_MAPS_API_KEY
-                }
-                
-                if transport_mode == 'transit':
-                    params['departure_time'] = 'now'
-                
-                try:
-                    response = requests.get(url, params=params, timeout=20)  # Timeout optimisé pour éviter timeouts
-                    response.raise_for_status()
-                    data = response.json()
-                    
-                    if data['status'] != 'OK':
-                        print(f"API Error pour {transport_mode}: {data.get('status')} - {data.get('error_message', '')}")
-                        continue
-                    
-                    # Parser les résultats pour ce chunk
-                    for person_idx_in_group, pos_info in enumerate(group_positions):
-                        original_person_idx = pos_info['index']
-                        
-                        # Initialiser la liste des temps si pas encore fait
-                        if all_travel_times[original_person_idx] is None:
-                            all_travel_times[original_person_idx] = [None] * len(limited_bars)
-                        
-                        for chunk_bar_idx in range(len(chunk_destinations)):
-                            actual_bar_idx = dest_start + chunk_bar_idx
-                            try:
-                                element = data['rows'][person_idx_in_group]['elements'][chunk_bar_idx]
-                                if element['status'] == 'OK':
-                                    duration_minutes = element['duration']['value'] / 60
-                                    all_travel_times[original_person_idx][actual_bar_idx] = duration_minutes
-                            except (KeyError, IndexError) as e:
-                                # Garder None pour ce bar/personne
-                                pass
-                
-                except requests.RequestException as e:
-                    print(f"Erreur requête Distance Matrix: {e}")
-                    continue
+        # Calculer les temps de trajet par groupe de transport
+        all_travel_times = process_transport_groups(transport_groups, destinations, positions)
         
         # Construire les résultats finaux par bar
-        final_results = {}
-        for bar_idx in range(len(limited_bars)):
-            travel_times_for_bar = []
-            valid_times = True
-            
-            for person_idx in range(len(positions)):
-                if (all_travel_times[person_idx] is not None and 
-                    bar_idx < len(all_travel_times[person_idx]) and
-                    all_travel_times[person_idx][bar_idx] is not None):
-                    travel_times_for_bar.append(all_travel_times[person_idx][bar_idx])
-                else:
-                    valid_times = False
-                    break
-            
-            if valid_times and len(travel_times_for_bar) == len(positions):
-                final_results[bar_idx] = travel_times_for_bar
-        
-        return final_results
+        return build_final_results(all_travel_times, len(limited_bars), len(positions))
         
     except Exception as e:
         print(f"Erreur calcul batch: {e}")
         return {}
+
+def group_positions_by_transport(positions: List[Dict]) -> Dict[str, List[Dict]]:
+    """Groupe les positions par mode de transport"""
+    transport_groups = {}
+    
+    for idx, position in enumerate(positions):
+        transport_mode = position.get('transportMode', 'walking')
+        google_mode = TRANSPORT_MODE_MAPPING.get(transport_mode, 'walking')
+        
+        if google_mode not in transport_groups:
+            transport_groups[google_mode] = []
+        
+        transport_groups[google_mode].append({
+            'index': idx,
+            'position': position,
+            'origin': f"{position['location']['lat']},{position['location']['lng']}"
+        })
+    
+    return transport_groups
+
+def prepare_destinations(bars: List[Dict]) -> List[str]:
+    """Prépare la liste des destinations (bars) pour l'API"""
+    destinations = []
+    for bar in bars:
+        bar_location = bar['geometry']['location']
+        destination = f"{bar_location['lat']},{bar_location['lng']}"
+        destinations.append(destination)
+    return destinations
+
+def process_transport_groups(transport_groups: Dict[str, List[Dict]], destinations: List[str], 
+                           positions: List[Dict]) -> List[Optional[List[float]]]:
+    """Traite chaque groupe de transport et calcule les temps de trajet"""
+    all_travel_times = [None] * len(positions)
+    
+    for transport_mode, group_positions in transport_groups.items():
+        origins = [pos_info['origin'] for pos_info in group_positions]
+        
+        # Respecter la limite de 5 origines
+        if len(origins) > MAX_API_ORIGINS:
+            print(f"Limitation de {len(origins)} à {MAX_API_ORIGINS} origines pour {transport_mode}")
+            origins = origins[:MAX_API_ORIGINS]
+            group_positions = group_positions[:MAX_API_ORIGINS]
+        
+        # Traiter par chunks de destinations
+        process_destination_chunks(transport_mode, origins, group_positions, destinations, all_travel_times)
+    
+    return all_travel_times
+
+def process_destination_chunks(transport_mode: str, origins: List[str], group_positions: List[Dict],
+                             destinations: List[str], all_travel_times: List[Optional[List[float]]]) -> None:
+    """Traite les destinations par chunks pour respecter les limites API"""
+    request_count = 0
+    
+    for dest_start in range(0, len(destinations), MAX_API_DESTINATIONS):
+        dest_end = min(dest_start + MAX_API_DESTINATIONS, len(destinations))
+        chunk_destinations = destinations[dest_start:dest_end]
+        request_count += 1
+        
+        if len(origins) > MAX_API_ORIGINS or len(chunk_destinations) > MAX_API_DESTINATIONS:
+            print(f"ERREUR: Dépassement limites API - {len(origins)}×{len(chunk_destinations)}")
+            continue
+        
+        print(f"Requête {request_count} pour {transport_mode}: {len(origins)}×{len(chunk_destinations)}")
+        
+        # Appel à l'API Distance Matrix
+        try:
+            data = call_distance_matrix_api(origins, chunk_destinations, transport_mode)
+            if data and data['status'] == 'OK':
+                parse_distance_matrix_results(data, group_positions, all_travel_times, dest_start)
+        except Exception as e:
+            print(f"Erreur requête Distance Matrix: {e}")
+
+def call_distance_matrix_api(origins: List[str], destinations: List[str], transport_mode: str) -> Optional[Dict]:
+    """Appelle l'API Distance Matrix de Google"""
+    url = "https://maps.googleapis.com/maps/api/distancematrix/json"
+    params = {
+        'origins': '|'.join(origins),
+        'destinations': '|'.join(destinations),
+        'mode': transport_mode,
+        'language': 'fr',
+        'key': GOOGLE_MAPS_API_KEY
+    }
+    
+    if transport_mode == 'transit':
+        params['departure_time'] = 'now'
+    
+    response = requests.get(url, params=params, timeout=API_TIMEOUT)
+    response.raise_for_status()
+    return response.json()
+
+def parse_distance_matrix_results(data: Dict, group_positions: List[Dict], 
+                                all_travel_times: List[Optional[List[float]]], dest_start: int) -> None:
+    """Parse les résultats de l'API Distance Matrix"""
+    for person_idx_in_group, pos_info in enumerate(group_positions):
+        original_person_idx = pos_info['index']
+        
+        if all_travel_times[original_person_idx] is None:
+            all_travel_times[original_person_idx] = [None] * len(data['destination_addresses'])
+        
+        for chunk_bar_idx, element in enumerate(data['rows'][person_idx_in_group]['elements']):
+            actual_bar_idx = dest_start + chunk_bar_idx
+            
+            if element['status'] == 'OK':
+                duration_minutes = element['duration']['value'] / 60
+                if len(all_travel_times[original_person_idx]) <= actual_bar_idx:
+                    # Étendre la liste si nécessaire
+                    all_travel_times[original_person_idx].extend([None] * (actual_bar_idx + 1 - len(all_travel_times[original_person_idx])))
+                all_travel_times[original_person_idx][actual_bar_idx] = duration_minutes
+
+def build_final_results(all_travel_times: List[Optional[List[float]]], num_bars: int, num_positions: int) -> Dict[int, List[float]]:
+    """Construit les résultats finaux par bar"""
+    final_results = {}
+    
+    for bar_idx in range(num_bars):
+        travel_times_for_bar = []
+        valid_times = True
+        
+        for person_idx in range(num_positions):
+            if (all_travel_times[person_idx] is not None and 
+                bar_idx < len(all_travel_times[person_idx]) and
+                all_travel_times[person_idx][bar_idx] is not None):
+                travel_times_for_bar.append(all_travel_times[person_idx][bar_idx])
+            else:
+                valid_times = False
+                break
+        
+        if valid_times and len(travel_times_for_bar) == num_positions:
+            final_results[bar_idx] = travel_times_for_bar
+    
+    return final_results
