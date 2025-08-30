@@ -458,43 +458,36 @@ export class BarFinder {
             balanceIndicator = '<span class="balance-poor">⚖️ Déséquilibré</span>';
         }
         
-        // Déterminer l'affichage du badge spécial (sans mentions top choice)
-        let specialBadge = '';
+        // Déterminer l'affichage des badges spéciaux
+        let badgeContainer = '';
         
-        // Gérer tous les types de bars spéciaux avec leurs badges
-        if (bar.markers && bar.markers.types && bar.markers.emojis) {
+        if (bar.marker_types && bar.marker_emojis) {
             const badges = [];
             
-            // Vérifier chaque type de marqueur dans l'ordre de priorité
-            bar.markers.types.forEach((type, index) => {
-                let badgeClass = '';
-                let badgeText = '';
-                
-                switch (type) {
-                    case 'most_optimized':
-                        badgeClass = 'special-badge optimized-badge';
-                        badgeText = `${bar.markers.emojis[index]} Meilleur compromis`;
-                        break;
-                    case 'most_balanced':
-                        badgeClass = 'special-badge balanced-badge';
-                        badgeText = `${bar.markers.emojis[index]} Plus équitable`;
-                        break;
-                    case 'fastest':
-                        badgeClass = 'special-badge fastest-badge';
-                        badgeText = `${bar.markers.emojis[index]} Plus rapide`;
-                        break;
-                }
-                
-                if (badgeClass) {
-                    badges.push(`<div class="${badgeClass}">${badgeText}</div>`);
+            // Définir l'ordre de priorité des badges
+            const priorityOrder = ['most_optimized', 'most_balanced', 'fastest'];
+            const badgeConfigs = {
+                'most_optimized': { class: 'optimized-badge', text: 'Meilleur compromis' },
+                'most_balanced': { class: 'balanced-badge', text: 'Plus équitable' },
+                'fastest': { class: 'fastest-badge', text: 'Plus rapide' }
+            };
+            
+            // Vérifier chaque type dans l'ordre de priorité
+            priorityOrder.forEach(priorityType => {
+                const index = bar.marker_types.indexOf(priorityType);
+                if (index !== -1) {
+                    const config = badgeConfigs[priorityType];
+                    badges.push(`<div class="special-badge ${config.class}">${bar.marker_emojis[index]} ${config.text}</div>`);
                 }
             });
             
-            specialBadge = badges.join('');
+            if (badges.length > 0) {
+                badgeContainer = `<div class="badge-container">${badges.join('')}</div>`;
+            }
         }
         
         card.innerHTML = `
-            ${specialBadge}
+            ${badgeContainer}
             <div class="bar-name">${bar.name}</div>
             <div class="bar-address">${bar.address}</div>
             <div class="bar-info">

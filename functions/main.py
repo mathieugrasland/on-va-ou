@@ -286,7 +286,7 @@ def build_bars_with_metrics(candidate_bars: List[Dict], travel_times_results: Di
         min_time = min(cluster_travel_times)
         time_spread = max_time - min_time
         time_balance_score = time_spread / avg_time if avg_time > 0 else float('inf')
-        optimization_score = time_spread * avg_time
+        optimization_score = std_time * avg_time
         
         # Métriques individuelles pour l'affichage
         individual_avg = statistics.mean(travel_times)
