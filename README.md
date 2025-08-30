@@ -41,7 +41,7 @@ L'algorithme de recherche de bars optimaux utilise une approche **entièrement a
   - Exclusion des hôtels et établissements non-bars
   - Focus sur les vrais bars/pubs/brasseries/cafés
   - Recherche multi-pages pour maximiser les candidats (jusqu'à 50 bars)
-- **Scoring d'équité géographique** : Pré-filtrage des 25 meilleurs candidats basé sur l'équilibre des distances
+- **Scoring d'équité géographique** : Pré-filtrage des 50 meilleurs candidats basé sur l'équilibre des distances
 
 ### 5. Clustering adaptatif des participants
 - **Distance de clustering intelligent** :

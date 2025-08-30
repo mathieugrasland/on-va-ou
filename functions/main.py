@@ -157,7 +157,7 @@ def find_optimal_bars(request):
             return jsonify({"error": "Positions manquantes"}), 400, headers
         
         positions = request_json['positions']
-        max_bars = request_json.get('max_bars', 25)  # Augmenté pour profiter de la limite API
+        max_bars = request_json.get('max_bars', 50)  # Augmenté pour profiter de la limite API
         
         if len(positions) < 2:
             return jsonify({"error": "Au moins 2 positions requises"}), 400, headers
@@ -537,7 +537,7 @@ def search_bars_optimized_zone(positions):
             print(f"Bars trouvés après {retry_count + 1} tentative(s): {len(candidate_bars)} bars")
         
         # 5. Filtrage équilibré basé sur l'équité géographique ET la qualité
-        if len(candidate_bars) > 25:  # Si trop de candidats, filtrer plus intelligemment
+        if len(candidate_bars) > 50:  # Si trop de candidats, filtrer plus intelligemment
             # Calculer pour chaque bar un score d'équité composite
             scored_bars = []
             for bar in candidate_bars:
@@ -581,7 +581,7 @@ def search_bars_optimized_zone(positions):
             
             # Trier par score composite (équité + distance + qualité)
             scored_bars.sort(key=lambda x: x['_composite_score'])
-            candidate_bars = scored_bars[:25]  # Limiter à 25 pour l'API
+            candidate_bars = scored_bars[:50]  # Limiter à 50 pour l'API
             
             print(f"Filtrage équilibré: gardé {len(candidate_bars)} bars les plus équitables (scores 0.{candidate_bars[0]['_composite_score']:.2f} à {candidate_bars[-1]['_composite_score']:.2f})")
         
@@ -592,7 +592,7 @@ def search_bars_optimized_zone(positions):
         # Fallback vers l'ancienne méthode avec un rayon par défaut
         center_lat = statistics.mean([pos['location']['lat'] for pos in positions])
         center_lng = statistics.mean([pos['location']['lng'] for pos in positions])
-        bars = search_bars_nearby(center_lat, center_lng, 2000, max_bars=25)  # 2km par défaut en cas d'erreur
+        bars = search_bars_nearby(center_lat, center_lng, 2000, max_bars=50)  # 2km par défaut en cas d'erreur
         return bars, center_lat, center_lng
 
 
@@ -717,7 +717,7 @@ def calculate_travel_times_batch(bars, positions):
         all_travel_times = [None] * len(positions)  # Index par position originale
         
         for transport_mode, group_positions in transport_groups.items():
-            # Traiter les requêtes par batch pour respecter les limites API (25×25 max)
+            # Traiter les requêtes par batch pour respecter les limites API (25×50 max)
             origins = [pos_info['origin'] for pos_info in group_positions]
             
             # Vérifier que nous ne dépassons pas 25 origines
@@ -726,20 +726,20 @@ def calculate_travel_times_batch(bars, positions):
                 origins = origins[:25]
                 group_positions = group_positions[:25]
             
-            # Calculer le nombre max de destinations par requête (25 max)
-            max_destinations_per_request = min(25, len(destinations))
+            # Calculer le nombre max de destinations par requête (50 max pour l'API Distance Matrix)
+            max_destinations_per_request = min(50, len(destinations))
             
             print(f"Mode {transport_mode}: {len(origins)} origines, max {max_destinations_per_request} destinations par requête")
             
-            # Découper les destinations par chunks de 25 maximum
+            # Découper les destinations par chunks de 50 maximum
             request_count = 0
             for dest_start in range(0, len(destinations), max_destinations_per_request):
                 dest_end = min(dest_start + max_destinations_per_request, len(destinations))
                 chunk_destinations = destinations[dest_start:dest_end]
                 request_count += 1
                 
-                # Vérification de sécurité pour 25×25
-                if len(origins) > 25 or len(chunk_destinations) > 25:
+                # Vérification de sécurité pour 25×50
+                if len(origins) > 25 or len(chunk_destinations) > 50:
                     print(f"ERREUR: Dépassement limites API - {len(origins)} origines × {len(chunk_destinations)} destinations")
                     continue
                 
