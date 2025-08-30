@@ -461,29 +461,36 @@ export class BarFinder {
         // Déterminer l'affichage du badge spécial (sans mentions top choice)
         let specialBadge = '';
         
-        // Gérer tous les types de bars spéciaux avec seulement les badges
-        if (bar.marker_emoji && bar.marker_type) {
-            let badgeClass = '';
-            let badgeText = '';
+        // Gérer tous les types de bars spéciaux avec leurs badges
+        if (bar.markers && bar.markers.types && bar.markers.emojis) {
+            const badges = [];
             
-            switch (bar.marker_type) {
-                case 'fastest':
-                    badgeClass = 'special-badge fastest-badge';
-                    badgeText = `${bar.marker_emoji} Plus rapide`;
-                    break;
-                case 'most_balanced':
-                    badgeClass = 'special-badge balanced-badge';
-                    badgeText = `${bar.marker_emoji} Plus équitable`;
-                    break;
-                case 'fastest_and_balanced':
-                    badgeClass = 'special-badge combined-badge';
-                    badgeText = `${bar.marker_emoji} Plus équitable ET plus rapide`;
-                    break;
-            }
+            // Vérifier chaque type de marqueur dans l'ordre de priorité
+            bar.markers.types.forEach((type, index) => {
+                let badgeClass = '';
+                let badgeText = '';
+                
+                switch (type) {
+                    case 'most_optimized':
+                        badgeClass = 'special-badge optimized-badge';
+                        badgeText = `${bar.markers.emojis[index]} Meilleur compromis`;
+                        break;
+                    case 'most_balanced':
+                        badgeClass = 'special-badge balanced-badge';
+                        badgeText = `${bar.markers.emojis[index]} Plus équitable`;
+                        break;
+                    case 'fastest':
+                        badgeClass = 'special-badge fastest-badge';
+                        badgeText = `${bar.markers.emojis[index]} Plus rapide`;
+                        break;
+                }
+                
+                if (badgeClass) {
+                    badges.push(`<div class="${badgeClass}">${badgeText}</div>`);
+                }
+            });
             
-            if (badgeClass) {
-                specialBadge = `<div class="${badgeClass}">${badgeText}</div>`;
-            }
+            specialBadge = badges.join('');
         }
         
         card.innerHTML = `

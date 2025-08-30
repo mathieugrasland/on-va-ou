@@ -285,6 +285,7 @@ def build_bars_with_metrics(candidate_bars: List[Dict], travel_times_results: Di
         min_time = min(cluster_travel_times)
         time_spread = max_time - min_time
         time_balance_score = time_spread / avg_time if avg_time > 0 else float('inf')
+        optimization_score = time_spread * avg_time
         
         # Métriques individuelles pour l'affichage
         individual_avg = statistics.mean(travel_times)
@@ -305,6 +306,7 @@ def build_bars_with_metrics(candidate_bars: List[Dict], travel_times_results: Di
             'min_travel_time': min_time,
             'time_spread': time_spread,
             'time_balance_score': time_balance_score,
+            'optimization_score': optimization_score,
             'individual_avg_time': individual_avg,
             'individual_max_time': individual_max,
             'individual_min_time': individual_min
@@ -338,18 +340,32 @@ def add_special_markers(bars: List[Dict]) -> None:
     # Identifier les bars spéciaux
     fastest_bar = min(bars, key=lambda x: x['avg_travel_time'])
     most_balanced_bar = min(bars, key=lambda x: x['time_balance_score'])
+    most_optimized_bar = min(bars, key=lambda x: x['optimization_score'])
     
     # Initialiser tous les bars
     for bar in bars:
         bar['marker_types'] = []
         bar['marker_emojis'] = []
     
-    # Marquer les bars spéciaux
-    fastest_bar['marker_types'].append('fastest')
-    fastest_bar['marker_emojis'].append('⚡')
+    # Réorganiser les bars dans l'ordre d'affichage souhaité
+    bars.sort(key=lambda x: (
+        0 if x == most_optimized_bar else 1,
+        0 if x == most_balanced_bar else 1,
+        0 if x == fastest_bar else 1
+    ))
     
-    most_balanced_bar['marker_types'].append('most_balanced')
-    most_balanced_bar['marker_emojis'].append('⚖️')
+    # Marquer les bars spéciaux
+    if most_optimized_bar:
+        most_optimized_bar['marker_types'].append('most_optimized')
+        most_optimized_bar['marker_emojis'].append('🎯')
+    
+    if most_balanced_bar:
+        most_balanced_bar['marker_types'].append('most_balanced')
+        most_balanced_bar['marker_emojis'].append('⚖️')
+    
+    if fastest_bar:
+        fastest_bar['marker_types'].append('fastest')
+        fastest_bar['marker_emojis'].append('⚡')
     
     # Finaliser les marqueurs
     for bar in bars:
