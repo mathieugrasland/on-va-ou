@@ -281,6 +281,7 @@ def build_bars_with_metrics(candidate_bars: List[Dict], travel_times_results: Di
         
         # Métriques basées sur les clusters
         avg_time = statistics.mean(cluster_travel_times)
+        std_time = statistics.stdev(cluster_travel_times)
         max_time = max(cluster_travel_times)
         min_time = min(cluster_travel_times)
         time_spread = max_time - min_time
