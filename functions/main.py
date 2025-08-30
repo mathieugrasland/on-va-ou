@@ -157,7 +157,7 @@ def find_optimal_bars(request):
             return jsonify({"error": "Positions manquantes"}), 400, headers
         
         positions = request_json['positions']
-        max_bars = request_json.get('max_bars', 50)  # Augmenté pour profiter de la limite API
+        max_bars = request_json.get('max_bars', 25)  # Valeur par défaut cohérente avec les nouvelles limites API
         
         if len(positions) < 2:
             return jsonify({"error": "Au moins 2 positions requises"}), 400, headers
@@ -167,7 +167,7 @@ def find_optimal_bars(request):
 
         # Calculer une zone de recherche optimisée basée sur la géométrie du groupe
         search_start = time.time()
-        candidate_bars, center_lat, center_lng = search_bars_optimized_zone(positions)
+        candidate_bars, center_lat, center_lng = search_bars_optimized_zone(positions, max_bars)
         search_time = time.time() - search_start
         print(f"Recherche bars terminée: {len(candidate_bars)} bars trouvés en {search_time:.2f}s")
         
@@ -175,13 +175,13 @@ def find_optimal_bars(request):
             return jsonify({"error": "Aucun bar trouvé dans la zone optimisée"}), 404, headers
         
         # Les bars sont déjà optimisés et filtrés par la nouvelle fonction
-        # Limitation finale à 25 bars maximum pour respecter l'API
-        final_candidate_bars = candidate_bars[:50]
+        # Utiliser la valeur max_bars fournie par le frontend
+        final_candidate_bars = candidate_bars[:max_bars]
         print(f"Bars finaux sélectionnés: {len(final_candidate_bars)} bars pour calcul des temps")
         
         # Calculer les temps de trajet pour les bars sélectionnés
         travel_start = time.time()
-        travel_times_results = calculate_travel_times_batch(final_candidate_bars, positions)
+        travel_times_results = calculate_travel_times_batch(final_candidate_bars, positions, max_bars)
         travel_time = time.time() - travel_start
         print(f"Calcul temps de trajet terminé: {len(travel_times_results)} bars avec temps en {travel_time:.2f}s")
         
@@ -413,7 +413,7 @@ def cluster_nearby_participants(positions, distance_threshold_km=0.6):
         return [[i] for i in range(len(positions))]
 
 
-def search_bars_optimized_zone(positions):
+def search_bars_optimized_zone(positions, max_bars=25):
     """Recherche des bars dans une zone optimisée basée sur la géométrie du groupe"""
     try:
         # 1. Analyser la dispersion géographique du groupe
@@ -521,7 +521,7 @@ def search_bars_optimized_zone(positions):
         print(f"Calcul du rayon: distance max personne->centre={max_person_distance_km:.1f}km, rayon={adaptive_radius:.0f}m")
         
         # 4. Rechercher dans la zone optimisée avec retry automatique si nécessaire
-        candidate_bars = search_bars_nearby(center_lat, center_lng, adaptive_radius, max_bars=50)
+        candidate_bars = search_bars_nearby(center_lat, center_lng, adaptive_radius, max_bars=max_bars)
         
         # Si aucun bar trouvé, essayer avec un rayon élargi (x1.5 puis x2.5)
         retry_count = 0
@@ -529,7 +529,7 @@ def search_bars_optimized_zone(positions):
             retry_count += 1
             expanded_radius = adaptive_radius * (1.5 if retry_count == 1 else 2.5)
             print(f"Aucun bar trouvé, tentative {retry_count}/2 avec rayon élargi: {expanded_radius:.0f}m")
-            candidate_bars = search_bars_nearby(center_lat, center_lng, expanded_radius, max_bars=50)
+            candidate_bars = search_bars_nearby(center_lat, center_lng, expanded_radius, max_bars=max_bars)
         
         if len(candidate_bars) == 0:
             print(f"Aucun bar trouvé après {retry_count + 1} tentatives")
@@ -537,7 +537,7 @@ def search_bars_optimized_zone(positions):
             print(f"Bars trouvés après {retry_count + 1} tentative(s): {len(candidate_bars)} bars")
         
         # 5. Filtrage équilibré basé sur l'équité géographique ET la qualité
-        if len(candidate_bars) > 50:  # Si trop de candidats, filtrer plus intelligemment
+        if len(candidate_bars) > max_bars:  # Si trop de candidats, filtrer plus intelligemment
             # Calculer pour chaque bar un score d'équité composite
             scored_bars = []
             for bar in candidate_bars:
@@ -581,7 +581,7 @@ def search_bars_optimized_zone(positions):
             
             # Trier par score composite (équité + distance + qualité)
             scored_bars.sort(key=lambda x: x['_composite_score'])
-            candidate_bars = scored_bars[:50]  # Limiter à 50 pour l'API
+            candidate_bars = scored_bars[:max_bars]  # Utiliser la valeur du frontend
             
             print(f"Filtrage équilibré: gardé {len(candidate_bars)} bars les plus équitables (scores 0.{candidate_bars[0]['_composite_score']:.2f} à {candidate_bars[-1]['_composite_score']:.2f})")
         
@@ -592,11 +592,11 @@ def search_bars_optimized_zone(positions):
         # Fallback vers l'ancienne méthode avec un rayon par défaut
         center_lat = statistics.mean([pos['location']['lat'] for pos in positions])
         center_lng = statistics.mean([pos['location']['lng'] for pos in positions])
-        bars = search_bars_nearby(center_lat, center_lng, 2000, max_bars=50)  # 2km par défaut en cas d'erreur
+        bars = search_bars_nearby(center_lat, center_lng, 2000, max_bars=max_bars)  # 2km par défaut en cas d'erreur
         return bars, center_lat, center_lng
 
 
-def search_bars_nearby(lat, lng, radius, max_bars=50):
+def search_bars_nearby(lat, lng, radius, max_bars=25):
     """Recherche les bars autour d'un point avec possibilité de récupérer plus de résultats"""
     try:
         url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
@@ -670,18 +670,18 @@ def search_bars_nearby(lat, lng, radius, max_bars=50):
         return []
 
 
-def calculate_travel_times_batch(bars, positions):
+def calculate_travel_times_batch(bars, positions, max_bars=25):
     """Calcule les temps de trajet pour tous les bars et positions en groupant par mode de transport"""
     try:
         if not bars or not positions:
             return {}
         
         # Optimisation : limiter dès le début pour éviter trop de calculs
-        # Adapter le nombre selon les positions pour respecter la limite API de 25x25
-        # Limite réelle : 25 origines × 25 destinations maximum
-        max_bars_to_process = min(50, len(bars))  # Maximum 25 destinations
+        # Adapter le nombre selon les positions pour respecter la limite API de 5×25
+        # Limite réelle : 5 origines × 25 destinations maximum
+        max_bars_to_process = min(max_bars, len(bars))  # Utiliser la valeur du frontend
         limited_bars = bars[:max_bars_to_process]
-        print(f"Traitement de {len(limited_bars)} bars pour {len(positions)} positions (limite API: 25×25)")
+        print(f"Traitement de {len(limited_bars)} bars pour {len(positions)} positions (limite API: 5×25)")
         
         # Grouper les positions par mode de transport
         transport_groups = {}
@@ -720,26 +720,26 @@ def calculate_travel_times_batch(bars, positions):
             # Traiter les requêtes par batch pour respecter les limites API (25×50 max)
             origins = [pos_info['origin'] for pos_info in group_positions]
             
-            # Vérifier que nous ne dépassons pas 25 origines
-            if len(origins) > 25:
-                print(f"Trop d'origines ({len(origins)}) pour le mode {transport_mode}, limitation à 25")
-                origins = origins[:25]
-                group_positions = group_positions[:25]
+            # Vérifier que nous ne dépassons pas 5 origines
+            if len(origins) > 5:
+                print(f"Trop d'origines ({len(origins)}) pour le mode {transport_mode}, limitation à 5")
+                origins = origins[:5]
+                group_positions = group_positions[:5]
             
-            # Calculer le nombre max de destinations par requête (50 max pour l'API Distance Matrix)
-            max_destinations_per_request = min(50, len(destinations))
+            # Calculer le nombre max de destinations par requête (25 max pour l'API Distance Matrix)
+            max_destinations_per_request = min(25, len(destinations))
             
             print(f"Mode {transport_mode}: {len(origins)} origines, max {max_destinations_per_request} destinations par requête")
             
-            # Découper les destinations par chunks de 50 maximum
+            # Découper les destinations par chunks de 25 maximum
             request_count = 0
             for dest_start in range(0, len(destinations), max_destinations_per_request):
                 dest_end = min(dest_start + max_destinations_per_request, len(destinations))
                 chunk_destinations = destinations[dest_start:dest_end]
                 request_count += 1
                 
-                # Vérification de sécurité pour 25×50
-                if len(origins) > 25 or len(chunk_destinations) > 50:
+                # Vérification de sécurité pour 5×25
+                if len(origins) > 5 or len(chunk_destinations) > 25:
                     print(f"ERREUR: Dépassement limites API - {len(origins)} origines × {len(chunk_destinations)} destinations")
                     continue
                 
