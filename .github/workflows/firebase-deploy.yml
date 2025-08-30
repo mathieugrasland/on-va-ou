@@ -2,18 +2,80 @@ name: 🚀 Deploy to Firebase
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch: # Permet déclenchement manuel
+    inputs:
+      deploy_all:
+        description: 'Force deploy all components'
+        required: false
+        default: false
+        type: boolean
+      rollback_to_main:
+        description: 'Deploy main branch to production (rollback)'
+        required: false
+        default: false
+        type: boolean
 
 env:
   NODE_VERSION: '20'
   PYTHON_VERSION: '3.11'
 
 jobs:
+  # Détermination de l'environnement et du mode de déploiement
+  setup:
+    name: 🎯 Setup Deployment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      is_rollback: ${{ steps.env.outputs.is_rollback }}
+      should_deploy_all: ${{ steps.env.outputs.should_deploy_all }}
+      branch_to_deploy: ${{ steps.env.outputs.branch_to_deploy }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine environment and deployment mode
+        id: env
+        run: |
+          # Déterminer la branche à déployer
+          if [ "${{ github.event.inputs.rollback_to_main }}" == "true" ]; then
+            echo "is_rollback=true" >> $GITHUB_OUTPUT
+            echo "branch_to_deploy=main" >> $GITHUB_OUTPUT
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "🔄 ROLLBACK MODE: Deploying main branch to production"
+            git checkout main
+          elif [ "${{ github.ref_name }}" == "main" ]; then
+            echo "is_rollback=false" >> $GITHUB_OUTPUT
+            echo "branch_to_deploy=main" >> $GITHUB_OUTPUT
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "🚀 PRODUCTION MODE: Deploying main branch"
+          elif [ "${{ github.ref_name }}" == "dev" ]; then
+            echo "is_rollback=false" >> $GITHUB_OUTPUT
+            echo "branch_to_deploy=dev" >> $GITHUB_OUTPUT
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "🧪 STAGING MODE: Deploying dev branch"
+          fi
+          
+          # Déterminer si on doit tout déployer
+          if [ "${{ github.event.inputs.deploy_all }}" == "true" ] || \
+             [ "${{ github.event.inputs.rollback_to_main }}" == "true" ] || \
+             [ "${{ github.event_name }}" == "workflow_dispatch" ] || \
+             [[ "${{ github.event.head_commit.message }}" == *"[deploy-all]"* ]]; then
+            echo "should_deploy_all=true" >> $GITHUB_OUTPUT
+            echo "📦 FULL DEPLOYMENT: All components will be deployed"
+          else
+            echo "should_deploy_all=false" >> $GITHUB_OUTPUT
+            echo "🎯 SELECTIVE DEPLOYMENT: Only changed components will be deployed"
+          fi
+
   # Analyse des changements pour optimiser les déploiements
   changes:
     name: 🔍 Detect Changes
     runs-on: ubuntu-latest
+    needs: setup
+    if: needs.setup.outputs.should_deploy_all == 'false'
     outputs:
       hosting: ${{ steps.changes.outputs.hosting }}
       functions: ${{ steps.changes.outputs.functions }}
@@ -42,9 +104,12 @@ jobs:
   validate:
     name: ✅ Validate Code
     runs-on: ubuntu-latest
+    needs: setup
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup.outputs.branch_to_deploy }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -70,22 +135,30 @@ jobs:
           fi
           echo "✅ Firebase config looks good"
 
+      - name: Display deployment info
+        run: |
+          echo "🎯 Deployment Information:"
+          echo "  Branch: ${{ needs.setup.outputs.branch_to_deploy }}"
+          echo "  Environment: ${{ needs.setup.outputs.environment }}"
+          echo "  Deploy All: ${{ needs.setup.outputs.should_deploy_all }}"
+          echo "  Is Rollback: ${{ needs.setup.outputs.is_rollback }}"
+
   # Déploiement Hosting (rapide)
   deploy-hosting:
     name: 🌐 Deploy Hosting
     runs-on: ubuntu-latest
-    needs: [changes, validate]
-    # Déploie si: changements hosting OU déclenchement manuel OU commit contient [deploy-all]
-    if: needs.changes.outputs.hosting == 'true' || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[deploy-all]')
+    needs: [setup, changes, validate]
+    if: always() && needs.validate.result == 'success' && (needs.setup.outputs.should_deploy_all == 'true' || needs.changes.outputs.hosting == 'true')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup.outputs.branch_to_deploy }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          # Suppression du cache NPM car pas de package.json dans le projet
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
@@ -97,6 +170,8 @@ jobs:
 
       - name: Deploy Hosting
         run: |
+          echo "🚀 Deploying from branch: ${{ needs.setup.outputs.branch_to_deploy }}"
+          echo "🎯 Environment: ${{ needs.setup.outputs.environment }}"
           firebase deploy --only hosting --project on-va-ou-470217 --non-interactive
           echo "✅ Hosting deployed successfully"
 
@@ -104,12 +179,13 @@ jobs:
   deploy-functions:
     name: ⚡ Deploy Functions
     runs-on: ubuntu-latest
-    needs: [changes, validate]
-    # Déploie si: changements functions OU déclenchement manuel OU commit contient [deploy-all]
-    if: needs.changes.outputs.functions == 'true' || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[deploy-all]')
+    needs: [setup, changes, validate]
+    if: always() && needs.validate.result == 'success' && (needs.setup.outputs.should_deploy_all == 'true' || needs.changes.outputs.functions == 'true')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup.outputs.branch_to_deploy }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -151,6 +227,9 @@ jobs:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         working-directory: functions
         run: |
+          echo "🚀 Deploying from branch: ${{ needs.setup.outputs.branch_to_deploy }}"
+          echo "🎯 Environment: ${{ needs.setup.outputs.environment }}"
+          
           # Déployer la fonction de géocodage sécurisée (1st gen pour simplicité)
           gcloud functions deploy geocode_address \
             --runtime python311 \
@@ -179,12 +258,13 @@ jobs:
   deploy-firestore:
     name: 🔐 Deploy Firestore Rules
     runs-on: ubuntu-latest
-    needs: [changes, validate]
-    # Déploie si: changements firestore OU déclenchement manuel OU commit contient [deploy-all]
-    if: needs.changes.outputs.firestore == 'true' || github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[deploy-all]')
+    needs: [setup, changes, validate]
+    if: always() && needs.validate.result == 'success' && (needs.setup.outputs.should_deploy_all == 'true' || needs.changes.outputs.firestore == 'true')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.setup.outputs.branch_to_deploy }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -201,6 +281,8 @@ jobs:
 
       - name: Deploy Firestore Rules Only (skip indexes for now)
         run: |
+          echo "🚀 Deploying from branch: ${{ needs.setup.outputs.branch_to_deploy }}"
+          echo "🎯 Environment: ${{ needs.setup.outputs.environment }}"
           # Déployer seulement les règles, pas les index pour éviter l'erreur 403
           firebase deploy --only firestore:rules --project on-va-ou-470217 --non-interactive
           echo "✅ Firestore rules deployed successfully (indexes skipped)"
@@ -209,11 +291,40 @@ jobs:
   notify-success:
     name: 🎉 Deployment Complete
     runs-on: ubuntu-latest
-    needs: [deploy-hosting, deploy-functions, deploy-firestore]
+    needs: [setup, deploy-hosting, deploy-functions, deploy-firestore]
     if: always() && (needs.deploy-hosting.result == 'success' || needs.deploy-functions.result == 'success' || needs.deploy-firestore.result == 'success')
     steps:
       - name: Success notification
         run: |
-          echo "🎉 Deployment completed successfully!"
-          echo "🌐 Your app is live at: https://on-va-ou-470217.web.app"
+          if [ "${{ needs.setup.outputs.is_rollback }}" == "true" ]; then
+            echo "🔄 ROLLBACK COMPLETED!"
+            echo "✅ Successfully rolled back to main branch"
+            echo "� Environment: ${{ needs.setup.outputs.environment }}"
+          else
+            echo "�🎉 Deployment completed successfully!"
+            echo "🚀 Branch: ${{ needs.setup.outputs.branch_to_deploy }}"
+            echo "� Environment: ${{ needs.setup.outputs.environment }}"
+          fi
+          echo "�🌐 Your app is live at: https://on-va-ou-470217.web.app"
           echo "📊 Firebase Console: https://console.firebase.google.com/project/on-va-ou-470217"
+
+  # Notification d'échec avec instructions de rollback
+  notify-failure:
+    name: ❌ Deployment Failed
+    runs-on: ubuntu-latest
+    needs: [setup, deploy-hosting, deploy-functions, deploy-firestore]
+    if: always() && (needs.deploy-hosting.result == 'failure' || needs.deploy-functions.result == 'failure' || needs.deploy-firestore.result == 'failure')
+    steps:
+      - name: Failure notification with rollback instructions
+        run: |
+          echo "❌ Deployment failed!"
+          echo "🎯 Failed branch: ${{ needs.setup.outputs.branch_to_deploy }}"
+          echo "🎯 Environment: ${{ needs.setup.outputs.environment }}"
+          echo ""
+          echo "🔄 To rollback to main branch, you can:"
+          echo "1. Go to Actions tab in GitHub"
+          echo "2. Click 'Run workflow' on this workflow"
+          echo "3. Check 'Deploy main branch to production (rollback)'"
+          echo "4. Click 'Run workflow'"
+          echo ""
+          echo "Or create a commit with '[deploy-all]' in the message on main branch"

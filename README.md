@@ -88,6 +88,44 @@ L'algorithme de recherche de bars optimaux utilise une approche **entièrement a
 
 Cette approche révolutionnaire **privilégie l'équité entre participants** plutôt que la note absolue des bars, garantissant que personne ne soit désavantagé par un temps de trajet excessif.
 
+## Déploiement et Rollback 🚀
+
+Le projet utilise GitHub Actions pour un déploiement automatisé sur Firebase avec support multi-environnements et rollback facile.
+
+### Déploiement automatique
+
+- **Production** : Push sur `main` → déploie automatiquement en production
+- **Staging** : Push sur `dev` → déploie automatiquement en environnement de test
+- **Déploiement sélectif** : Seuls les composants modifiés sont redéployés automatiquement
+
+### Déploiement manuel et rollback
+
+#### Option 1 : Via GitHub Actions (Interface)
+1. Aller dans l'onglet **Actions** du repository
+2. Sélectionner **"🚀 Deploy to Firebase"**
+3. Cliquer **"Run workflow"**
+4. Choisir les options :
+   - ✅ **"Force deploy all components"** → déploie tout
+   - ✅ **"Deploy main branch to production (rollback)"** → rollback vers main
+
+#### Option 2 : Via commit message
+- Ajouter `[deploy-all]` dans le message de commit pour forcer un déploiement complet
+- Exemple : `git commit -m "fix: correction critique [deploy-all]"`
+
+#### Option 3 : Rollback d'urgence
+Si un déploiement sur `dev` cause des problèmes en production :
+```bash
+# 1. Faire un commit vide sur main avec [deploy-all]
+git checkout main
+git commit --allow-empty -m "rollback: deploy stable version [deploy-all]"
+git push origin main
+```
+
+### Surveillance et monitoring
+- **URL Production** : https://on-va-ou-470217.web.app/
+- **Firebase Console** : https://console.firebase.google.com/project/on-va-ou-470217
+- **GitHub Actions** : Logs détaillés de chaque déploiement
+
 ## Technologies
 
 - **Frontend** : HTML/CSS/JavaScript vanilla
