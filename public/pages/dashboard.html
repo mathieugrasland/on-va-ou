@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Tableau de bord - On va où ? Visualisez la position de vos amis">
     <meta name="theme-color" content="#5d4037">
-    <title>Tableau de bord - On va où ?</title>
+    <title>Accueil - On va où ?</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/icons/favicon.ico">
@@ -572,7 +572,7 @@
                     <h2>🗺️ Carte des Positions</h2>
                     <div id="map-container" class="map-container">
                         <div class="loading-message">
-                            🗺️ Chargement de la carte sécurisée...
+                            🗺️ Chargement, si ça dure plus de 5 secondes, actualise avec le bouton sur la barre de navigation...
                         </div>
                     </div>
                     
@@ -587,7 +587,7 @@
 
                 <!-- Section sélection d'amis -->
                 <div class="friends-section">
-                    <h3>👥 Sélectionner les amis (<span id="friends-count">0</span>)</h3>
+                    <h3>👥 Sélectionne les amis (<span id="friends-count">0</span>)</h3>
                     <div id="friends-list" class="friends-list">
                         <div class="loading-message">Chargement des amis...</div>
                     </div>
@@ -598,7 +598,7 @@
                             <span id="selected-count">0</span> ami(s) sélectionné(s)
                         </div>
                         <button id="find-bars-btn" class="button find-bars-btn" disabled>
-                            🔍 Trouver des bars
+                            🔍 Chercher
                         </button>
                         <div id="search-status" class="search-status"></div>
                     </div>
@@ -739,7 +739,7 @@
                 friendsList.innerHTML = '';
 
                 if (friends.length === 0) {
-                    friendsList.innerHTML = '<div class="loading-message">Aucun ami pour le moment</div>';
+                    friendsList.innerHTML = '<div class="loading-message">Aucun ami pour le moment, ajoute les avec leur mail !</div>';
                     return;
                 }
 
